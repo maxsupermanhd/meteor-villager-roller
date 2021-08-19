@@ -1,0 +1,40 @@
+plugins {
+    id 'fabric-loom' version '0.8-SNAPSHOT'
+    id 'maven-publish'
+}
+
+sourceCompatibility = targetCompatibility = JavaVersion.VERSION_16
+
+archivesBaseName = project.archives_base_name
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+    maven {
+        name = "jitpack"
+        url = "https://jitpack.io"
+    }
+}
+
+dependencies {
+    // Minecraft
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_version}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // Meteor
+    modImplementation "com.github.MeteorDevelopment:meteor-client:master-SNAPSHOT"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = 16
+}
