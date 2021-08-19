@@ -1,8 +1,5 @@
-# Meteor Addon Template
+# Meteor Villager Roller
 
-A template to allow easy usage of the Meteor Addon API.
+Does what it says...
 
-### How to use:  
-- Clone this project
-- Use this template to create new modules/commands
-- Run the mod with Meteor.
+Send help

@@ -1,20 +1,21 @@
 {
   "schemaVersion": 1,
-  "id": "addon-template",
+  "id": "meteor-villager-roller",
   "version": "${version}",
-  "name": "Addon Template",
-  "description": "An addon template for the Meteor Addon API.",
+  "name": "Meteor Villager Roller",
+  "description": "Addon that rolls trades on villagers.",
   "authors": [
-    "seasnail8169"
+    "seasnail8169",
+	"FlexCoral"
   ],
   "contact": {
-    "repo": "https://github.com/MeteorDevelopment/meteor-addon-template"
+    "repo": "https://github.com/maxsupermanhd/meteor-villager-roller"
   },
   "icon": "assets/template/icon.png",
   "environment": "client",
   "entrypoints": {
     "meteor": [
-      "meteordevelopment.addons.template.TemplateAddon"
+      "meteordevelopment.addons.villager-roller.VillagerRollerAddon"
     ]
   },
   "mixins": [
