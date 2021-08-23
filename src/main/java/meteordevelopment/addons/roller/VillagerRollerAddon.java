@@ -15,16 +15,14 @@ import java.lang.invoke.MethodHandles;
 public class VillagerRollerAddon extends MeteorAddon {
 	public static final Logger LOG = LogManager.getLogger();
 
-	public static VillagerRoller Roller = new VillagerRoller();
-
 	@Override
 	public void onInitialize() {
 		LOG.info("Initializing Meteor Villager Roller");
 
 		// Required when using @EventHandler
-		MeteorClient.EVENT_BUS.registerLambdaFactory("meteordevelopment.addons.villager-roller", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
+		MeteorClient.EVENT_BUS.registerLambdaFactory("meteordevelopment.addons.roller", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
 
 		// Modules
-		Modules.get().add(Roller);
+		Modules.get().add(new VillagerRoller());
 	}
 }
