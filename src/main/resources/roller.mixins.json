@@ -1,8 +1,10 @@
 {
   "required": true,
-  "package": "meteordevelopment.addons.template.mixins",
+  "package": "meteordevelopment.addons.roller.mixins",
   "compatibilityLevel": "JAVA_16",
-  "client": [],
+  "client": [
+    "VillagerInteractMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

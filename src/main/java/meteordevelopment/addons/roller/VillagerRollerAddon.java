@@ -1,8 +1,6 @@
-package meteordevelopment.addons.template;
+package meteordevelopment.addons.roller;
 
-import meteordevelopment.addons.template.commands.*;
-import meteordevelopment.addons.template.modules.*;
-import meteordevelopment.addons.template.modules.hud.*;
+import meteordevelopment.addons.roller.modules.*;
 import meteordevelopment.meteorclient.MeteorAddon;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.systems.commands.Commands;
@@ -17,6 +15,8 @@ import java.lang.invoke.MethodHandles;
 public class VillagerRollerAddon extends MeteorAddon {
 	public static final Logger LOG = LogManager.getLogger();
 
+	public static VillagerRoller Roller = new VillagerRoller();
+
 	@Override
 	public void onInitialize() {
 		LOG.info("Initializing Meteor Villager Roller");
@@ -25,11 +25,6 @@ public class VillagerRollerAddon extends MeteorAddon {
 		MeteorClient.EVENT_BUS.registerLambdaFactory("meteordevelopment.addons.villager-roller", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
 
 		// Modules
-		Modules.get().add(new Example());
-	}
-
-	@Override
-	public void onRegisterCategories() {
-		Modules.registerCategory(CATEGORY);
+		Modules.get().add(Roller);
 	}
 }
