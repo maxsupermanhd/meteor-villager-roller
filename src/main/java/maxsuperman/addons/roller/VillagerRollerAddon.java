@@ -1,12 +1,9 @@
-package meteordevelopment.addons.roller;
+package maxsuperman.addons.roller;
 
-import meteordevelopment.addons.roller.modules.*;
+import maxsuperman.addons.roller.modules.VillagerRoller;
 import meteordevelopment.meteorclient.MeteorAddon;
 import meteordevelopment.meteorclient.MeteorClient;
-import meteordevelopment.meteorclient.systems.commands.Commands;
-import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import meteordevelopment.meteorclient.systems.modules.render.hud.HUD;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "meteordevelopment.addons.roller.mixins",
+  "package": "maxsuperman.addons.roller.mixins",
   "compatibilityLevel": "JAVA_16",
   "client": [
     "VillagerInteractMixin"

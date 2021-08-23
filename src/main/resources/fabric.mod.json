@@ -15,7 +15,7 @@
   "environment": "client",
   "entrypoints": {
     "meteor": [
-      "meteordevelopment.addons.roller.VillagerRollerAddon"
+      "maxsuperman.addons.roller.VillagerRollerAddon"
     ]
   },
   "mixins": [
