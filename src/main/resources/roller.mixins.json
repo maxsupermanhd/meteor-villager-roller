@@ -3,7 +3,9 @@
   "package": "maxsuperman.addons.roller.mixins",
   "compatibilityLevel": "JAVA_16",
   "client": [
-    "VillagerInteractMixin"
+    "VillagerInteractMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "MerchantScreenHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
