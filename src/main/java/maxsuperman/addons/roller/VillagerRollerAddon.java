@@ -1,7 +1,7 @@
 package maxsuperman.addons.roller;
 
 import maxsuperman.addons.roller.modules.VillagerRoller;
-import meteordevelopment.meteorclient.MeteorAddon;
+import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 

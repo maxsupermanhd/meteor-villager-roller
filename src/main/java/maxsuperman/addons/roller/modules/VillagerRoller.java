@@ -16,25 +16,18 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.item.EnchantedBookItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.screen.MerchantScreenHandler;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.TranslatableText;
-import net.minecraft.util.ChatUtil;
 import net.minecraft.util.Hand;
+import net.minecraft.util.StringHelper;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +39,7 @@ public class VillagerRoller extends Module {
     private final Setting<List<Enchantment>> searchingEnchants = sgGeneral.add(new EnchantmentListSetting.Builder()
         .name("searching-enchants")
         .description("Enchantments to search")
-        .defaultValue(Arrays.asList(Enchantment.byRawId(0)))
+        .defaultValue(Arrays.asList(Enchantment.byRawId(0), Enchantment.byRawId(1)))
         .build()
     );
 
@@ -67,7 +60,7 @@ public class VillagerRoller extends Module {
     private final Setting<List<SoundEvent>> sound = sgGeneral.add(new SoundEventListSetting.Builder()
         .name("sound-to-play")
         .description("Sound that will be played when desired trade is found if enabled")
-        .defaultValue(Arrays.asList(BLOCK_AMETHYST_CLUSTER_BREAK))
+        .defaultValue(Collections.singletonList(BLOCK_AMETHYST_CLUSTER_BREAK))
         .build()
     );
 
@@ -87,6 +80,36 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> pauseOnScreen = sgGeneral.add(new BoolSetting.Builder()
+        .name("pause-on-screens")
+        .description("Pauses rolling if any screen is open")
+        .defaultValue(true)
+        .build()
+    );
+
+//    private final Setting<Boolean> enablePlaceRetry = sgGeneral.add(new BoolSetting.Builder()
+//        .name("enable-place-retry")
+//        .description("Retries to place block every n specified ticks if failed")
+//        .defaultValue(true)
+//        .build()
+//    );
+//
+//    private final Setting<Integer> placeRetryDelay = sgGeneral.add(new IntSetting.Builder()
+//        .name("place-retry-delay")
+//        .description("Delay on place retry, in ticks")
+//        .defaultValue(20)
+//        .min(1)
+//        .sliderMax(80)
+//        .build()
+//    );
+
+    private final Setting<Boolean> headRotateOnPlace = sgGeneral.add(new BoolSetting.Builder()
+        .name("rotate-place")
+        .description("Look to the block while placing it?")
+        .defaultValue(true)
+        .build()
+    );
+
 //    private final Setting<Boolean> sendInteraction = sgGeneral.add(new BoolSetting.Builder()
 //        .name("send-interaction")
 //        .description("Actually interact with villager")
@@ -101,15 +124,17 @@ public class VillagerRoller extends Module {
 		RollingBreakingBlock,
         RollingWaitingForVillagerProfessionClear,
         RollingPlacingBlock,
+//        RollingPlacingBlockRetry,
         RollingWaitingForVillagerProfessionNew,
         RollingWaitingForVillagerTrades
 	}
 
-	public State currentState = State.Disabled;
+	public static State currentState = State.Disabled;
 
 	public BlockPos rollingBlockPos;
     public Block rollingBlock;
 	public VillagerEntity rollingVillager;
+//    public int retryPlaceIn;
 
 	public VillagerRoller() {super(Categories.Misc, "villager-roller", "Rolls trades.");}
 
@@ -125,9 +150,14 @@ public class VillagerRoller extends Module {
 	}
 
 	public void triggerInteract() {
+	    if(pauseOnScreen.get() && mc.currentScreen != null) {
+	        info("Rolling paused, interact with villager to continue");
+        } else {
+            assert mc.interactionManager != null;
+            mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+        }
 //	    if(sendInteraction.get()) {
 //            info(String.format("Interacting with villager"));
-            mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
 //        } else {
 //            info(String.format("Checking trades"));
 //            for (Entity entity : mc.world.getEntities()) {
@@ -148,7 +178,7 @@ public class VillagerRoller extends Module {
             for (Map.Entry<Enchantment, Integer> enchant : offerEnchants.entrySet()) {
                 if(enchant.getKey().getMaxLevel() == enchant.getValue() && searchingEnchants.get().contains(enchant.getKey())) {
                     if(enableMaxPrice.get() && offer.getOriginalFirstBuyItem().getCount() > maxPrice.get()) {
-                        info(String.format("Found enchant %s %sbut it costs too much: %s (max price) < %d (cost)", ChatUtil.stripTextFormat(new TranslatableText(enchant.getKey().getTranslationKey()).getString()), enchant.getKey().getMaxLevel() == 1 ? "" : enchant.getValue().toString()+" ", maxPrice.get().toString(), offer.getOriginalFirstBuyItem().getCount()));
+                        info(String.format("Found enchant %s but it costs too much: %s (max price) < %d (cost)", StringHelper.stripTextFormat(new TranslatableText(enchant.getKey().getTranslationKey()).getString()) + (enchant.getKey().getMaxLevel() == 1 ? "" : " "+enchant.getValue().toString()), maxPrice.get().toString(), offer.getOriginalFirstBuyItem().getCount()));
                         continue;
                     }
                     ChatUtils.sendMsg("Villager Roller found enchantment", enchant.getKey().getName(enchant.getValue()));
@@ -161,11 +191,12 @@ public class VillagerRoller extends Module {
                     }
                     return;
                 } else {
-                    info(String.format("Found enchant %s %s but it is not in the list.", ChatUtil.stripTextFormat(new TranslatableText(enchant.getKey().getTranslationKey()).getString()), enchant.getValue().toString()));
+                    info(String.format("Found enchant %s %s but it is not in the list.", StringHelper.stripTextFormat(new TranslatableText(enchant.getKey().getTranslationKey()).getString()), enchant.getValue().toString()));
                 }
             }
         }
 //        ((MerchantScreenHandler)mc.player.currentScreenHandler).closeHandledScreen();
+        assert mc.player != null;
         mc.player.closeHandledScreen();
         currentState = State.RollingBreakingBlock;
     }
@@ -174,6 +205,7 @@ public class VillagerRoller extends Module {
     private void onStartBreakingBlockEvent(StartBreakingBlockEvent event) {
         if(currentState == State.WaitingForTargetBlock) {
             rollingBlockPos = event.blockPos;
+            assert mc.world != null;
             rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
             currentState = State.WaitingForTargetVillager;
             info("Rolling block selected, now interact with villager you want to roll");
@@ -184,6 +216,7 @@ public class VillagerRoller extends Module {
 	@EventHandler
 	private void onTick(TickEvent.Pre event) {
 	    if(currentState == State.RollingBreakingBlock) {
+            assert mc.world != null;
             if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
 //                info("Block is broken, waiting for villager to clean profession...");
                 currentState = State.RollingWaitingForVillagerProfessionClear;
@@ -199,12 +232,19 @@ public class VillagerRoller extends Module {
                 currentState = State.RollingPlacingBlock;
             }
         } else if(currentState == State.RollingPlacingBlock) {
-//	        info("Placing block");
             FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
-            if(!BlockUtils.place(rollingBlockPos, item, 5)) {
-                info("Failed to place block");
+            if(!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
+                info("Failed to place block, please place it manually");
+            } else {
+                currentState = State.RollingWaitingForVillagerProfessionNew;
             }
-            currentState = State.RollingWaitingForVillagerProfessionNew;
+//        } else if(currentState == State.RollingPlacingBlockRetry) {
+//	        if(retryPlaceIn > 0) {
+//	            retryPlaceIn--;
+//            } else {
+//	            info("Trying to place block again");
+//                currentState = State.RollingPlacingBlock;
+//            }
         } else if(currentState == State.RollingWaitingForVillagerProfessionNew) {
             if(rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
                 currentState = State.RollingWaitingForVillagerTrades;

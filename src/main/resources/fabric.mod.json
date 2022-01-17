@@ -5,8 +5,9 @@
   "name": "Meteor Villager Roller",
   "description": "Addon that rolls trades on villagers.",
   "authors": [
+    "FlexCoral",
     "seasnail8169",
-    "FlexCoral"
+    "Cloudburst"
   ],
   "contact": {
     "repo": "https://github.com/maxsupermanhd/meteor-villager-roller"
@@ -22,8 +23,8 @@
     "roller.mixins.json"
   ],
   "depends": {
-    "java": ">=16",
-    "minecraft": ">=1.17",
-    "meteor-client": ">0.4.3"
+    "java": "17",
+    "minecraft": "1.18.1",
+    "meteor-client": ">0.4.5"
   }
 }
