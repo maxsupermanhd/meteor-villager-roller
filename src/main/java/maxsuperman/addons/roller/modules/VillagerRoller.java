@@ -60,6 +60,12 @@ public class VillagerRoller extends Module {
             .defaultValue(true)
             .build());
 
+    private final Setting<Boolean> saveListToConfig = sgGeneral.add(new BoolSetting.Builder()
+        .name("save-list-to-config")
+        .description("Toggles saving and loading of rolling list to config and copypaste buffer")
+        .defaultValue(true)
+        .build());
+
     private final Setting<Boolean> enablePlaySound = sgGeneral.add(new BoolSetting.Builder()
             .name("enable-sound")
             .description("Plays sound when it finds desired trade")
@@ -117,7 +123,7 @@ public class VillagerRoller extends Module {
     public Block rollingBlock;
     public VillagerEntity rollingVillager;
     public List<rollingEnchantment> searchingEnchants = new ArrayList<rollingEnchantment>();
-    
+
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
     }
@@ -142,27 +148,31 @@ public class VillagerRoller extends Module {
     @Override
     public NbtCompound toTag() {
         NbtCompound tag = super.toTag();
-        NbtList l = new NbtList();
-        for (rollingEnchantment e : searchingEnchants) {
-            l.add(e.toTag());
+        if (saveListToConfig.get()) {
+            NbtList l = new NbtList();
+            for (rollingEnchantment e : searchingEnchants) {
+                l.add(e.toTag());
+            }
+            tag.put("rolling", l);
         }
-        tag.put("rolling", l);
         return tag;
     }
 
     @Override
     public Module fromTag(NbtCompound tag) {
-        NbtList l = tag.getList("rolling", NbtElement.COMPOUND_TYPE);
-        searchingEnchants.clear();
-        for (NbtElement e : l) {
-            if (e.getType() != NbtElement.COMPOUND_TYPE) {
-                info("Invalid list element");
-                continue;
+        super.fromTag(tag);
+        if (saveListToConfig.get()) {
+            NbtList l = tag.getList("rolling", NbtElement.COMPOUND_TYPE);
+            searchingEnchants.clear();
+            for (NbtElement e : l) {
+                if (e.getType() != NbtElement.COMPOUND_TYPE) {
+                    info("Invalid list element");
+                    continue;
+                }
+                searchingEnchants.add(new rollingEnchantment().fromTag((NbtCompound) e));
             }
-            searchingEnchants.add(new rollingEnchantment().fromTag((NbtCompound) e));
         }
-
-        return super.fromTag(tag);
+        return this;
     }
 
     public boolean loadSearchingFromFile(File f) {
@@ -220,7 +230,7 @@ public class VillagerRoller extends Module {
         WSection loadDataSection = list.add(theme.section("Config Saving")).expandX().widget();
 
         WTable control = loadDataSection.add(theme.table()).expandX().widget();
-        
+
         WTextBox nfname = control.add(theme.textBox("default")).expandWidgetX().expandCellX().expandX().widget();
         WButton save = control.add(theme.button("Save")).expandX().widget();
         save.action = () -> {
@@ -336,7 +346,7 @@ public class VillagerRoller extends Module {
             fillWidget(theme, list);
         };
 
-        
+
 
         table.row();
     }
@@ -364,7 +374,7 @@ public class VillagerRoller extends Module {
                 WButton a = table.add(theme.button("Select")).widget();
                 a.action = () -> {
                     callback.Selection(e);
-                    onClose();
+                    close();
                 };
                 table.row();
             }

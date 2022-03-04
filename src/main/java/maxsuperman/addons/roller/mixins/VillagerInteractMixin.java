@@ -15,9 +15,9 @@ class VillagerInteractMixin {
     public void interactMob(CallbackInfoReturnable<ActionResult> cir) {
         VillagerRoller roller = Modules.get().get(VillagerRoller.class);
         if (VillagerRoller.currentState == VillagerRoller.State.WaitingForTargetVillager) {
+            VillagerRoller.currentState = VillagerRoller.State.RollingBreakingBlock;
             roller.rollingVillager = (VillagerEntity) (Object) this;
             roller.info("We got your villager");
-            VillagerRoller.currentState = VillagerRoller.State.RollingBreakingBlock;
             cir.setReturnValue(ActionResult.CONSUME);
             cir.cancel();
         }
