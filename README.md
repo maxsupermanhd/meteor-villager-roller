@@ -9,10 +9,11 @@ Addon that changes villager profession until desired trade found
 
 | Minecraft | Supported |
 | --------- | --------- |
+| 1.19.x | Planned |
 | 1.18.2 | Yes |
 | 1.18.1 | Yes |
 | 1.18 | Compile-yourself |
-| 1.17.1 | No (branch planned) |
+| 1.17.1 | Compile-yourself |
 | 1.17 | Compile-yourself |
 | 1.16 1.16.x | Compile-yourself *|
 | < 1.16 | No |
