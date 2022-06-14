@@ -458,7 +458,7 @@ public class VillagerRoller extends Module {
             rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
             currentState = State.WaitingForTargetVillager;
             info("Rolling block selected, now interact with villager you want to roll");
-            event.cancel();
+//            event.cancel(); //Dirty hack
         }
     }
 
