@@ -122,7 +122,7 @@ public class VillagerRoller extends Module {
     public BlockPos rollingBlockPos;
     public Block rollingBlock;
     public VillagerEntity rollingVillager;
-    public List<rollingEnchantment> searchingEnchants = new ArrayList<rollingEnchantment>();
+    public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
 
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
@@ -244,30 +244,39 @@ public class VillagerRoller extends Module {
         };
         control.row();
 
-        ArrayList<String> fnames = new ArrayList<String>();
-        try {
-            Files.list(MeteorClient.FOLDER.toPath().resolve("VillagerRoller")).forEach(path -> {
-                String name = path.getFileName().toString();
-                fnames.add(name.substring(0, name.length() - 4));
-            });
-        } catch (IOException e) {
-            e.printStackTrace();
+        ArrayList<String> fnames = new ArrayList<>();
+        var path = MeteorClient.FOLDER.toPath().resolve("VillagerRoller");
+        if(Files.notExists(path)) {
+            if(!path.toFile().mkdirs()) {
+                error("Failed to create directory [{}]", path);
+            }
+        } else {
+            try (var l = Files.list(path)) {
+                l.forEach(p -> {
+                    String name = p.getFileName().toString();
+                    fnames.add(name.substring(0, name.length() - 4));
+                });
+            } catch(IOException e) {
+                error("Failed to list directory", e);
+            }
         }
-        if (fnames.size() == 0) {
-            fnames.add("default");
-        }
-        WDropdown<String> lfname = control.add(theme.dropdown(fnames.toArray(new String[0]), "default"))
+        if (fnames.size() != 0) {
+            WDropdown<String> lfname = control.add(theme.dropdown(fnames.toArray(new String[0]), "default"))
                 .expandWidgetX().expandCellX().expandX().widget();
-        WButton load = control.add(theme.button("Load")).expandX().widget();
-        load.action = () -> {
-            loadSearchingFromFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), lfname.get()+".nbt"));
-            list.clear();
-            fillWidget(theme, list);
-        };
+            WButton load = control.add(theme.button("Load")).expandX().widget();
+            load.action = () -> {
+                if (loadSearchingFromFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), lfname.get()+".nbt"))) {
+                    list.clear();
+                    fillWidget(theme, list);
+                } else {
+                    error("Failed to load file.");
+                }
+            };
+        }
 
-        WSection enchantements = list.add(theme.section("Enchantements")).expandX().widget();
+        WSection enchantments = list.add(theme.section("Enchantments")).expandX().widget();
 
-        WTable table = enchantements.add(theme.table()).expandX().widget();
+        WTable table = enchantments.add(theme.table()).expandX().widget();
         table.add(theme.item(Items.BOOK.getDefaultStack()));
         table.add(theme.label("Enchantment"));
         table.add(theme.label("Level"));
@@ -282,33 +291,29 @@ public class VillagerRoller extends Module {
 
             WHorizontalList label = theme.horizontalList();
             WButton c = label.add(theme.button("Change")).widget();
-            c.action = () -> {
-                mc.setScreen(new EnchantmentSelectScreen(theme, (Enchantment sel) -> {
-                    e.enchantment = sel;
-                    list.clear();
-                    fillWidget(theme, list);
-                }));
-            };
+            c.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (Enchantment sel) -> {
+                e.enchantment = sel;
+                list.clear();
+                fillWidget(theme, list);
+            }));
             label.add(theme.label(Names.get(e.enchantment)));
             table.add(label);
 
             WIntEdit lev = table.add(theme.intEdit(e.minLevel, 0, e.enchantment.getMaxLevel(), true)).minWidth(40)
                     .expandX().widget();
-            lev.action = () -> {
-                e.minLevel = lev.get();
-            };
+            lev.action = () -> e.minLevel = lev.get();
             lev.tooltip = "Minimum enchantment level, 0 acts as maximum possible only";
 
-            WIntEdit cost = table.add(theme.intEdit(e.maxCost, 0, 64, false)).minWidth(40).expandX().widget();
-            cost.action = () -> {
-                e.maxCost = cost.get();
-            };
+            var costbox = table.add(theme.horizontalList()).minWidth(50).expandX().widget();
+            WIntEdit cost = costbox.add(theme.intEdit(e.maxCost, 0, 64, false)).minWidth(40).expandX().widget();
+            cost.action = () -> e.maxCost = cost.get();
             cost.tooltip = "Maximum cost in emeralds, 0 means no limit";
+            var setOptimal = costbox.add(theme.button("O")).widget();
+            setOptimal.tooltip = "Set to optimal price (5 + minLevel*3) (double if treasure)";
+            setOptimal.action = () -> e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
 
             WCheckbox en = table.add(theme.checkbox(e.enabled)).widget();
-            en.action = () -> {
-                e.enabled = en.checked;
-            };
+            en.action = () -> e.enabled = en.checked;
             en.tooltip = "Enabled?";
 
             WMinus del = table.add(theme.minus()).widget();
@@ -320,7 +325,7 @@ public class VillagerRoller extends Module {
             table.row();
         }
 
-        WHorizontalList bottomControls = enchantements.add(theme.horizontalList()).expandX().widget();
+        WHorizontalList bottomControls = enchantments.add(theme.horizontalList()).expandX().widget();
 
         WButton removeAll = bottomControls.add(theme.button("Remove all")).expandX().widget();
         removeAll.action = () -> {
@@ -330,25 +335,29 @@ public class VillagerRoller extends Module {
         };
 
         WButton create = bottomControls.add(theme.button("Add")).expandX().widget();
-        create.action = () -> {
-            searchingEnchants.add(new rollingEnchantment(0, 0, 0, true));
+        create.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (e) -> {
+            searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), true));
             list.clear();
             fillWidget(theme, list);
-        };
+        }));
 
         WButton addAll = bottomControls.add(theme.button("Add all")).expandX().widget();
         addAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
-            for (Enchantment enchantment : Registry.ENCHANTMENT) {
-                searchingEnchants.add(new rollingEnchantment(enchantment, 0, 0, false));
+            for (Enchantment e : Registry.ENCHANTMENT) {
+                searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
             }
             fillWidget(theme, list);
         };
 
-
-
         table.row();
+    }
+
+    public int getMinimumPrice(Enchantment e, int l) {
+//      TradeOffers.EnchantBookFactory.create()
+//      Lnet/minecraft/village/TradeOffers$EnchantBookFactory;create(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/random/Random;)Lnet/minecraft/village/TradeOffer;
+        return e.isTreasure() ? (2 + 3*l)*2 : 2 + 3*l;
     }
 
     public interface EnchantmentSelectCallback {
@@ -369,7 +378,7 @@ public class VillagerRoller extends Module {
         @Override
         public void initWidgets() {
             WTable table = add(theme.table()).widget();
-            for (Enchantment e : available) {
+            for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
                 table.add(theme.label(Names.get(e))).expandCellX();
                 WButton a = table.add(theme.button("Select")).widget();
                 a.action = () -> {
@@ -507,10 +516,6 @@ public class VillagerRoller extends Module {
         public int minLevel;
         public int maxCost;
         public boolean enabled;
-
-        public rollingEnchantment(int _enchantment, int _minLevel, int _maxCost, boolean _enabled) {
-            this(Enchantment.byRawId(_enchantment), _minLevel, _maxCost, _enabled);
-        }
 
         public rollingEnchantment(Enchantment _enchantment, int _minLevel, int _maxCost, boolean _enabled) {
             this.enchantment = _enchantment;

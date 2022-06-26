@@ -22,6 +22,9 @@
   "mixins": [
     "roller.mixins.json"
   ],
+  "custom": {
+    "meteor-client:color": "0,255,0"
+  },
   "depends": {
     "java": ">=17",
     "minecraft": "1.19",
