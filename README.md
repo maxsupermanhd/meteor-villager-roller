@@ -8,16 +8,16 @@ Addon that changes villager profession until desired trade found
 
 ## Versions
 
-| Minecraft | Supported          |
-| --------- |--------------------|
-| 1.19.x | Early              |
-| 1.18.2 | Yes                |
-| 1.18.1 | Yes                |
-| 1.18 | Compile-yourself   |
-| 1.17.1 | Compile-yourself   |
-| 1.17 | Compile-yourself   |
+| Minecraft   | Supported          |
+| ----------- |--------------------|
+| 1.19        | Yes                |
+| 1.18.2      | Yes                |
+| 1.18.1      | Compile-yourself   |
+| 1.18        | Compile-yourself   |
+| 1.17.1      | Compile-yourself   |
+| 1.17        | Compile-yourself   |
 | 1.16 1.16.x | Compile-yourself * |
-| < 1.16 | No                 |
+| < 1.16      | No                 |
 
 \* Imports modification required because of meteor refactoring (can be found in commit 252e479)
 
