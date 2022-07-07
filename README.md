@@ -8,16 +8,16 @@ Addon that changes villager profession until desired trade found
 
 ## Versions
 
-| Minecraft   | Supported          |
-| ----------- |--------------------|
-| 1.19        | Yes                |
-| 1.18.2      | Yes                |
-| 1.18.1      | Compile-yourself   |
-| 1.18        | Compile-yourself   |
-| 1.17.1      | Compile-yourself   |
-| 1.17        | Compile-yourself   |
-| 1.16 1.16.x | Compile-yourself * |
-| < 1.16      | No                 |
+| Minecraft   | Supported          | Download |
+| ----------- | ------------------ | -------- |
+| 1.19        | Yes                | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar) |
+| 1.18.2      | Yes                | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.18.2-rev.3d6f694.jar) |
+| 1.18.1      | Compile-yourself   | [1.2.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.2.1/villager-roller-1.2.1.jar) |
+| 1.18        | Compile-yourself   | No |
+| 1.17.1      | Compile-yourself   | No |
+| 1.17        | Compile-yourself   | No |
+| 1.16 1.16.x | Compile-yourself * | No |
+| < 1.16      | No                 | No |
 
 \* Imports modification required because of meteor refactoring (can be found in commit 252e479)
 
