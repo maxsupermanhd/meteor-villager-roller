@@ -22,4 +22,14 @@ public class VillagerRollerAddon extends MeteorAddon {
 		// Modules
 		Modules.get().add(new VillagerRoller());
 	}
+    
+    @Override
+    public void onRegisterCategories() {
+        //Modules.registerCategory(CATEGORY);
+    }
+
+    @Override
+    public String getPackage() {
+        return "maxsuperman.addons.roller";
+    }
 }
