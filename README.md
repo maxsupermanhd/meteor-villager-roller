@@ -10,7 +10,8 @@ Addon that changes villager profession until desired trade found
 
 | Minecraft   | Meteor           | Supported          | Download |
 | ----------- | ---------------- | ------------------ | -------- |
-| 1.19.1      | 0.5.1-dev >1570  | Yes                | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar) |
+| 1.19.2      | 0.5.1-dev >1573  | Yes?               | [1.3.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.3/villager-roller-1.3.3+mc1.19.2-rev.b66ca6d.jar) |
+| 1.19.1      | 0.5.1-dev >1570  | at this point I have no idea | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar) |
 | 1.19        | 0.5.0-dev >=1563 | Who knows at this point | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.1/villager-roller-1.3.1+mc1.19-build.34.jar) |
 | 1.19        | 0.5.0-dev <1563  | Ask seasnail       | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar) |
 | 1.18.2      | 0.4.9            | Ask seasnail       | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.18.2-rev.3d6f694.jar) |
