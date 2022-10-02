@@ -346,7 +346,9 @@ public class VillagerRoller extends Module {
             list.clear();
             searchingEnchants.clear();
             for (Enchantment e : Registry.ENCHANTMENT) {
-                searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
+                if (!String.valueOf(e).contains("SoulSpeed")||!String.valueOf(e).contains("SwiftSneak")) {
+                    searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
+                }
             }
             fillWidget(theme, list);
         };
