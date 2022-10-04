@@ -15,9 +15,17 @@ class VillagerInteractMixin {
     public void interactMob(CallbackInfoReturnable<ActionResult> cir) {
         VillagerRoller roller = Modules.get().get(VillagerRoller.class);
         if (VillagerRoller.currentState == VillagerRoller.State.WaitingForTargetVillager) {
-            VillagerRoller.currentState = VillagerRoller.State.RollingBreakingBlock;
-            roller.rollingVillager = (VillagerEntity) (Object) this;
-            roller.info("We got your villager");
+            if(roller.rollingVillager.size()==VillagerRoller.VillagerCount) {
+                VillagerRoller.currentState = VillagerRoller.State.RollingBreakingBlock;
+                VillagerRoller.pathToBlockPos(roller.standingBlockpos.get(0));
+            }
+            if(roller.rollingVillager.size()<VillagerRoller.VillagerCount) {
+                roller.rollingVillager.add((VillagerEntity) (Object) this);
+                roller.info("Villager N " + roller.rollingVillager.size());
+                roller.info("We got your villager");
+                roller.info("Attack next rolling block");
+                VillagerRoller.currentState = VillagerRoller.State.WaitingForTargetBlock;
+            }
             cir.setReturnValue(ActionResult.CONSUME);
             cir.cancel();
         }

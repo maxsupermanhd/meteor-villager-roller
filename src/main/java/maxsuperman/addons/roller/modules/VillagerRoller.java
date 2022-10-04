@@ -42,6 +42,8 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
+import baritone.api.BaritoneAPI;
+import baritone.api.pathing.goals.GoalBlock;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,6 +73,14 @@ public class VillagerRoller extends Module {
             .description("Plays sound when it finds desired trade")
             .defaultValue(true)
             .build());
+
+    private final Setting<Integer> villagerCount = sgGeneral.add(new IntSetting.Builder()
+        .name("Number of Villagers")
+        .description("Number of villagers you want to roll in one go")
+        .defaultValue(1)
+        .min(1)
+        .sliderRange(1,100)
+        .build());
 
     private final Setting<List<SoundEvent>> sound = sgSound.add(new SoundEventListSetting.Builder()
             .name("sound-to-play")
@@ -109,6 +119,7 @@ public class VillagerRoller extends Module {
     public enum State {
         Disabled,
         WaitingForTargetBlock,
+        WaitingForStandingBlock,
         WaitingForTargetVillager,
         RollingBreakingBlock,
         RollingWaitingForVillagerProfessionClear,
@@ -118,10 +129,12 @@ public class VillagerRoller extends Module {
     }
 
     public static State currentState = State.Disabled;
+    public static int VillagerCount;
 
-    public BlockPos rollingBlockPos;
+    public ArrayList<BlockPos> rollingBlockPos=new ArrayList<>();
+    public ArrayList<BlockPos> standingBlockpos=new ArrayList<>();
     public Block rollingBlock;
-    public VillagerEntity rollingVillager;
+    public ArrayList<VillagerEntity> rollingVillager=new ArrayList<>();
     public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
 
     public VillagerRoller() {
@@ -136,6 +149,9 @@ public class VillagerRoller extends Module {
 
     @Override
     public void onDeactivate() {
+        rollingBlockPos.clear();
+        standingBlockpos.clear();
+        rollingVillager.clear();
         currentState = State.Disabled;
         info("Roller disabled.");
     }
@@ -217,6 +233,13 @@ public class VillagerRoller extends Module {
             return false;
         }
         return true;
+    }
+
+    public static void pathToBlockPos(BlockPos pos) {
+        BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(pos.getX(), pos.getY()+1,pos.getZ() ));
+        //BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().isActive()
+        //new GoalGetToBlock(pos);
+        //new PathingCommand(new GoalGetToBlock(new BlockPos(pos)), PathingCommandType.SET_GOAL_AND_PATH);
     }
 
     @Override
@@ -345,10 +368,9 @@ public class VillagerRoller extends Module {
         addAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
-            for (Enchantment e : Registry.ENCHANTMENT) {
-                if (!String.valueOf(e).contains("SoulSpeed")||!String.valueOf(e).contains("SwiftSneak")) {
-                    searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
-                }
+            for (Enchantment e : Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList()) {
+                searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
+
             }
             fillWidget(theme, list);
         };
@@ -367,7 +389,7 @@ public class VillagerRoller extends Module {
     }
 
     public static class EnchantmentSelectScreen extends WindowScreen {
-        private final Registry<Enchantment> available = Registry.ENCHANTMENT;
+        private final List <Enchantment> available = Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
         private final GuiTheme theme;
         private final EnchantmentSelectCallback callback;
 
@@ -398,7 +420,7 @@ public class VillagerRoller extends Module {
             info("Rolling paused, interact with villager to continue");
         } else {
             assert mc.interactionManager != null;
-            mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+            mc.interactionManager.interactEntity(mc.player, rollingVillager.get(0), Hand.MAIN_HAND);
         }
     }
 
@@ -441,7 +463,15 @@ public class VillagerRoller extends Module {
                     if (disableIfFound.get()) {
                         e.enabled = false;
                     }
-                    toggle();
+                    rollingVillager.remove(0);
+                    rollingBlockPos.remove(0);
+                    standingBlockpos.remove(0);
+                    if (rollingBlockPos.size()==0) {
+                        toggle();
+                    }
+                    if(standingBlockpos.size()!=0) {
+                        pathToBlockPos(standingBlockpos.get(0));
+                    }
                     if (enablePlaySound.get() && sound.get().size() > 0) {
                         mc.getSoundManager().play(PositionedSoundInstance.master(this.sound.get().get(0),
                                 soundPitch.get().floatValue(), soundVolume.get().floatValue()));
@@ -463,37 +493,49 @@ public class VillagerRoller extends Module {
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onStartBreakingBlockEvent(StartBreakingBlockEvent event) {
-        if (currentState == State.WaitingForTargetBlock) {
-            rollingBlockPos = event.blockPos;
+        if (currentState == State.WaitingForStandingBlock) {
+            standingBlockpos.add(event.blockPos);
             assert mc.world != null;
-            rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
+            //info("Standing block Pos N "+ rollingBlockPos.size());
             currentState = State.WaitingForTargetVillager;
             info("Rolling block selected, now interact with villager you want to roll");
+        }
+        if (currentState == State.WaitingForTargetBlock) {
+            VillagerCount= villagerCount.get();
+            assert mc.world != null;
+            rollingBlock = mc.world.getBlockState(event.blockPos).getBlock();
+            if(rollingBlock == Blocks.LECTERN) {
+                rollingBlockPos.add(event.blockPos);
+                //info("Rolling block Pos N " + rollingBlockPos.size() + rollingBlock.toString());
+                currentState = State.WaitingForStandingBlock;
+                info("Rolling block selected, now attack block you should stand on");
+            }
 //            event.cancel(); //Dirty hack
         }
+
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (currentState == State.RollingBreakingBlock) {
+        if (currentState == State.RollingBreakingBlock&&!BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().isActive()) {
             assert mc.world != null;
-            if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+            if (mc.world.getBlockState(rollingBlockPos.get(0)) == Blocks.AIR.getDefaultState()) {
                 // info("Block is broken, waiting for villager to clean profession...");
                 currentState = State.RollingWaitingForVillagerProfessionClear;
             } else {
-                if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
+                if (!BlockUtils.breakBlock(rollingBlockPos.get(0), true)) {
                     info("Can not break block");
                     toggle();
                 }
             }
         } else if (currentState == State.RollingWaitingForVillagerProfessionClear) {
-            if (rollingVillager.getVillagerData().getProfession() == VillagerProfession.NONE) {
+            if (rollingVillager.get(0).getVillagerData().getProfession() == VillagerProfession.NONE) {
                 // info("Profession cleared");
                 currentState = State.RollingPlacingBlock;
             }
         } else if (currentState == State.RollingPlacingBlock) {
             FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
-            if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
+            if (!BlockUtils.place(rollingBlockPos.get(0), item, headRotateOnPlace.get(), 5)) {
                 info("Failed to place block, please place it manually");
             } else {
                 currentState = State.RollingWaitingForVillagerProfessionNew;
@@ -506,7 +548,7 @@ public class VillagerRoller extends Module {
             // currentState = State.RollingPlacingBlock;
             // }
         } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
-            if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
+            if (rollingVillager.get(0).getVillagerData().getProfession() != VillagerProfession.NONE) {
                 currentState = State.RollingWaitingForVillagerTrades;
                 triggerInteract();
             }
