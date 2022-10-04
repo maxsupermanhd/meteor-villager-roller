@@ -47,6 +47,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK;
 
@@ -345,7 +346,7 @@ public class VillagerRoller extends Module {
         addAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
-            for (Enchantment e : Registry.ENCHANTMENT) {
+            for (Enchantment e : Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList()) {
                 searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
             }
             fillWidget(theme, list);
@@ -365,7 +366,7 @@ public class VillagerRoller extends Module {
     }
 
     public static class EnchantmentSelectScreen extends WindowScreen {
-        private final Registry<Enchantment> available = Registry.ENCHANTMENT;
+        private final List<Enchantment> available = Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
         private final GuiTheme theme;
         private final EnchantmentSelectCallback callback;
 
