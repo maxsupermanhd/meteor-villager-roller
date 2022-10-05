@@ -82,6 +82,14 @@ public class VillagerRoller extends Module {
         .sliderRange(1,100)
         .build());
 
+    private final Setting<Double> waitTime = sgGeneral.add(new DoubleSetting.Builder()
+        .name("Max Wait Time")
+        .description("Time to wait for villager to take profession")
+        .defaultValue(60_000.0)
+        .min(0.0)
+        .sliderRange(0,100_000)
+        .build());
+
     private final Setting<List<SoundEvent>> sound = sgSound.add(new SoundEventListSetting.Builder()
             .name("sound-to-play")
             .description("Sound that will be played when desired trade is found if enabled")
@@ -125,6 +133,7 @@ public class VillagerRoller extends Module {
         RollingWaitingForVillagerProfessionClear,
         RollingPlacingBlock,
         RollingWaitingForVillagerProfessionNew,
+        ChangingVillagers,
         RollingWaitingForVillagerTrades
     }
 
@@ -134,6 +143,7 @@ public class VillagerRoller extends Module {
     public ArrayList<BlockPos> rollingBlockPos=new ArrayList<>();
     public ArrayList<BlockPos> standingBlockpos=new ArrayList<>();
     public Block rollingBlock;
+    public long placeTime;
     public ArrayList<VillagerEntity> rollingVillager=new ArrayList<>();
     public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
 
@@ -240,6 +250,17 @@ public class VillagerRoller extends Module {
         //BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().isActive()
         //new GoalGetToBlock(pos);
         //new PathingCommand(new GoalGetToBlock(new BlockPos(pos)), PathingCommandType.SET_GOAL_AND_PATH);
+    }
+    public void changeVillagers(){
+        VillagerEntity v =rollingVillager.get(0);
+        BlockPos bp =rollingBlockPos.get(0);
+        BlockPos sb = standingBlockpos.get(0);
+        rollingVillager.remove(0);
+        rollingBlockPos.remove(0);
+        standingBlockpos.remove(0);
+        rollingVillager.add(v);
+        rollingBlockPos.add(bp);
+        standingBlockpos.add(sb);
     }
 
     @Override
@@ -539,6 +560,7 @@ public class VillagerRoller extends Module {
                 info("Failed to place block, please place it manually");
             } else {
                 currentState = State.RollingWaitingForVillagerProfessionNew;
+                placeTime = System.currentTimeMillis();
             }
             // } else if(currentState == State.RollingPlacingBlockRetry) {
             // if(retryPlaceIn > 0) {
@@ -552,6 +574,16 @@ public class VillagerRoller extends Module {
                 currentState = State.RollingWaitingForVillagerTrades;
                 triggerInteract();
             }
+            if(System.currentTimeMillis()>placeTime+waitTime.get()&&placeTime!=0&&rollingVillager.size()>1){
+                currentState =State.ChangingVillagers;
+                placeTime=0;
+
+            }
+        } else if (currentState==State.ChangingVillagers) {
+            changeVillagers();
+            pathToBlockPos(standingBlockpos.get(0));
+            currentState = State.RollingBreakingBlock;
+
         }
     }
 
