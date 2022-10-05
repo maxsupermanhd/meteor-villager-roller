@@ -569,7 +569,7 @@ public class VillagerRoller extends Module {
             // info("Trying to place block again");
             // currentState = State.RollingPlacingBlock;
             // }
-        } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
+        } else if (currentState == State.RollingWaitingForVillagerProfessionNew&&!BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().isActive()) {
             if (rollingVillager.get(0).getVillagerData().getProfession() != VillagerProfession.NONE) {
                 currentState = State.RollingWaitingForVillagerTrades;
                 triggerInteract();
@@ -582,7 +582,7 @@ public class VillagerRoller extends Module {
         } else if (currentState==State.ChangingVillagers) {
             changeVillagers();
             pathToBlockPos(standingBlockpos.get(0));
-            currentState = State.RollingBreakingBlock;
+            currentState = State.RollingWaitingForVillagerProfessionNew;
 
         }
     }
