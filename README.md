@@ -52,3 +52,11 @@ Addon is targeted for lazy people that are playing on server and trying to find 
   Searching, pathfinding and moving to specific item on the ground is difficult and messy, there always a chance that all lecterns will fly away from player and it will end up with empty hands. You can optimize it by having hopper-dropper setup or flowing water if you really want to. Feel free to implement non destructive moving towards dropped item if you want.
 - It always rolls to best level of enchantment \
   Update Villager Roller to 1.2
+
+## Copying and credit
+
+Integrating Villager Roller into other clients without modifying underlying featureset/codebase is allowed only with prior agreement or credit inside module settings/description. (Example: `Villager Roller by FlexCoral`)
+
+## License
+
+GPL-3.0, see LICENSE in project root
