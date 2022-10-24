@@ -16,9 +16,6 @@ public class VillagerRollerAddon extends MeteorAddon {
 	public void onInitialize() {
 		LOG.info("Initializing Meteor Villager Roller");
 
-		// Required when using @EventHandler
-		MeteorClient.EVENT_BUS.registerLambdaFactory("maxsuperman.addons.roller", (lookupInMethod, klass) -> (MethodHandles.Lookup) lookupInMethod.invoke(null, klass, MethodHandles.lookup()));
-
 		// Modules
 		Modules.get().add(new VillagerRoller());
 	}
