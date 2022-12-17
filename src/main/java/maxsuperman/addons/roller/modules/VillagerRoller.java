@@ -35,10 +35,10 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.*;
+import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.registry.Registry;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
@@ -47,7 +47,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK;
 
@@ -346,7 +345,7 @@ public class VillagerRoller extends Module {
         addAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
-            for (Enchantment e : Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList()) {
+            for (Enchantment e : Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList()) {
                 searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
             }
             fillWidget(theme, list);
@@ -366,7 +365,7 @@ public class VillagerRoller extends Module {
     }
 
     public static class EnchantmentSelectScreen extends WindowScreen {
-        private final List<Enchantment> available = Registry.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
+        private final List<Enchantment> available = Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
         private final GuiTheme theme;
         private final EnchantmentSelectCallback callback;
 
@@ -535,7 +534,7 @@ public class VillagerRoller extends Module {
         @Override
         public NbtCompound toTag() {
             NbtCompound tag = new NbtCompound();
-            tag.putInt("enchantment", Registry.ENCHANTMENT.getRawId(this.enchantment));
+            tag.putInt("enchantment", Registries.ENCHANTMENT.getRawId(this.enchantment));
             tag.putInt("minLevel", this.minLevel);
             tag.putInt("maxCost", this.maxCost);
             tag.putBoolean("enabled", this.enabled);
