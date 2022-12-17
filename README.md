@@ -6,11 +6,14 @@
 
 Addon that changes villager profession until desired trade found
 
+We have [Discord server](https://discord.com/invite/DFsMKWJJPN)
+
 ## Versions
 
 | Minecraft   | Meteor           | Supported          | Download |
 | ----------- | ---------------- | ------------------ | -------- |
-| 1.19.2      | 0.5.1-dev >1573  | Yes                | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.4/villager-roller-1.3.4+mc1.19.2-rev.f2c071c.jar) |
+| 1.19.3      | 0.5.2-dev >1714  | Yes                | [1.3.5](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.5/villager-roller-1.3.5+mc1.19.3-rev.07401b8.jar) |
+| 1.19.2      | 0.5.1-dev >1573  | No                 | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.4/villager-roller-1.3.4+mc1.19.2-rev.f2c071c.jar) |
 | 1.19.1      | 0.5.1-dev >1570  | No                 | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar) |
 | 1.19        | 0.5.0-dev >=1563 | No                 | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.1/villager-roller-1.3.1+mc1.19-build.34.jar) |
 | 1.19        | 0.5.0-dev <1563  | No                 | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar) |
