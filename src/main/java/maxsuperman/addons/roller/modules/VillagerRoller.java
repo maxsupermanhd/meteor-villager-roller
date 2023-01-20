@@ -101,10 +101,24 @@ public class VillagerRoller extends Module {
             .build());
 
     private final Setting<Boolean> headRotateOnPlace = sgGeneral.add(new BoolSetting.Builder()
-            .name("rotate-place")
-            .description("Look to the block while placing it?")
-            .defaultValue(true)
-            .build());
+        .name("rotate-place")
+        .description("Look to the block while placing it?")
+        .defaultValue(true)
+        .build());
+
+    private final Setting<Integer> failedToPlaceDelay = sgGeneral.add(new IntSetting.Builder()
+        .name("place-fail-delay")
+        .description("Delay after failed block place")
+        .defaultValue(20*5)
+        .min(0)
+        .sliderRange(0, 20*45)
+        .build());
+
+    private final Setting<Boolean> failedToPlaceDisable = sgGeneral.add(new BoolSetting.Builder()
+        .name("place-fail-disable")
+        .description("Disables roller if block placement fails")
+        .defaultValue(false)
+        .build());
 
     public enum State {
         Disabled,
@@ -123,6 +137,7 @@ public class VillagerRoller extends Module {
     public Block rollingBlock;
     public VillagerEntity rollingVillager;
     public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
+    private int failedToPlaceDelayLeft = 0;
 
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
@@ -492,7 +507,17 @@ public class VillagerRoller extends Module {
         } else if (currentState == State.RollingPlacingBlock) {
             FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
             if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                info("Failed to place block, please place it manually");
+                if (failedToPlaceDisable.get()) {
+                    info("Failed to place block, roller disabled");
+                    toggle();
+                } else {
+                    if (failedToPlaceDelayLeft <= 0) {
+                        info("Failed to place block, please place it manually");
+                        failedToPlaceDelayLeft += failedToPlaceDelay.get();
+                    } else {
+                        failedToPlaceDelayLeft--;
+                    }
+                }
             } else {
                 currentState = State.RollingWaitingForVillagerProfessionNew;
             }
