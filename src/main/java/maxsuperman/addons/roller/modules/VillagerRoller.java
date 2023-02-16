@@ -355,23 +355,23 @@ public class VillagerRoller extends Module {
             table.row();
         }
 
-        WHorizontalList bottomControls = enchantments.add(theme.horizontalList()).expandX().widget();
+        WTable controls = list.add(theme.table()).expandX().widget();
 
-        WButton removeAll = bottomControls.add(theme.button("Remove all")).expandX().widget();
+        WButton removeAll = controls.add(theme.button("Remove all")).expandX().widget();
         removeAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
             fillWidget(theme, list);
         };
 
-        WButton create = bottomControls.add(theme.button("Add")).expandX().widget();
+        WButton create = controls.add(theme.button("Add")).expandX().widget();
         create.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (e) -> {
             searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), true));
             list.clear();
             fillWidget(theme, list);
         }));
 
-        WButton addAll = bottomControls.add(theme.button("Add all")).expandX().widget();
+        WButton addAll = controls.add(theme.button("Add all")).expandX().widget();
         addAll.action = () -> {
             list.clear();
             searchingEnchants.clear();
@@ -380,8 +380,64 @@ public class VillagerRoller extends Module {
             }
             fillWidget(theme, list);
         };
+        controls.row();
 
-        table.row();
+        WButton setOptimalForAll = controls.add(theme.button("Set optimal for all")).expandX().widget();
+        setOptimalForAll.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
+            }
+            fillWidget(theme, list);
+        };
+
+        WButton priceBumpUp = controls.add(theme.button("+1 to price for all")).expandX().widget();
+        priceBumpUp.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.maxCost++;
+            }
+            fillWidget(theme, list);
+        };
+
+        WButton priceBumpDown = controls.add(theme.button("-1 to price for all")).expandX().widget();
+        priceBumpDown.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.maxCost--;
+            }
+            fillWidget(theme, list);
+        };
+        controls.row();
+
+        WButton setZeroForAll = controls.add(theme.button("Set zero price for all")).expandX().widget();
+        setZeroForAll.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.maxCost = 0;
+            }
+            fillWidget(theme, list);
+        };
+
+        WButton enableAll = controls.add(theme.button("Enable all")).expandX().widget();
+        enableAll.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.enabled = true;
+            }
+            fillWidget(theme, list);
+        };
+
+        WButton disableAll = controls.add(theme.button("Disable all")).expandX().widget();
+        disableAll.action = () -> {
+            list.clear();
+            for (rollingEnchantment e : searchingEnchants) {
+                e.enabled = false;
+            }
+            fillWidget(theme, list);
+        };
+        controls.row();
+
     }
 
     public int getMinimumPrice(Enchantment e, int l) {
