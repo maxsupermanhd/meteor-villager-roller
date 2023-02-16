@@ -120,6 +120,12 @@ public class VillagerRoller extends Module {
         .defaultValue(false)
         .build());
 
+    private final Setting<Boolean> sortEnchantments = sgGeneral.add(new BoolSetting.Builder()
+        .name("sort-enchantments")
+        .description("Show enchantments sorted by their name")
+        .defaultValue(true)
+        .build());
+
     public enum State {
         Disabled,
         WaitingForTargetBlock,
@@ -299,6 +305,9 @@ public class VillagerRoller extends Module {
         table.add(theme.label("Enabled"));
         table.add(theme.label("Remove"));
         table.row();
+        if (sortEnchantments.get()) {
+            searchingEnchants.sort((o1, o2) -> Names.get(o1.enchantment).compareToIgnoreCase(Names.get(o2.enchantment)));
+        }
         for (rollingEnchantment e : searchingEnchants) {
             ItemStack book = Items.ENCHANTED_BOOK.getDefaultStack();
             book.addEnchantment(e.enchantment, e.minLevel < 0 ? e.enchantment.getMaxLevel() : e.minLevel);
