@@ -289,6 +289,7 @@ public class VillagerRoller extends Module {
                 if (loadSearchingFromFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), lfname.get()+".nbt"))) {
                     list.clear();
                     fillWidget(theme, list);
+                    info("Loaded successfully");
                 } else {
                     error("Failed to load file.");
                 }
@@ -332,9 +333,14 @@ public class VillagerRoller extends Module {
             WIntEdit cost = costbox.add(theme.intEdit(e.maxCost, 0, 64, false)).minWidth(40).expandX().widget();
             cost.action = () -> e.maxCost = cost.get();
             cost.tooltip = "Maximum cost in emeralds, 0 means no limit";
+
             var setOptimal = costbox.add(theme.button("O")).widget();
             setOptimal.tooltip = "Set to optimal price (5 + minLevel*3) (double if treasure)";
-            setOptimal.action = () -> e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
+            setOptimal.action = () -> {
+                list.clear();
+                e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
+                fillWidget(theme, list);
+            };
 
             WCheckbox en = table.add(theme.checkbox(e.enabled)).widget();
             en.action = () -> e.enabled = en.checked;
