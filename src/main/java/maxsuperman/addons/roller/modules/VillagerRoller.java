@@ -108,10 +108,10 @@ public class VillagerRoller extends Module {
 
     private final Setting<Integer> failedToPlaceDelay = sgGeneral.add(new IntSetting.Builder()
         .name("place-fail-delay")
-        .description("Delay after failed block place")
-        .defaultValue(20*5)
+        .description("Delay after failed block place (milliseconds)")
+        .defaultValue(1500)
         .min(0)
-        .sliderRange(0, 20*45)
+        .sliderRange(0, 10000)
         .build());
 
     private final Setting<Boolean> failedToPlaceDisable = sgGeneral.add(new BoolSetting.Builder()
@@ -143,7 +143,7 @@ public class VillagerRoller extends Module {
     public Block rollingBlock;
     public VillagerEntity rollingVillager;
     public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
-    private int failedToPlaceDelayLeft = 0;
+    private long failedToPlacePrevMsg = System.currentTimeMillis();
 
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
@@ -230,7 +230,9 @@ public class VillagerRoller extends Module {
         }
         NbtCompound c = new NbtCompound();
         c.put("rolling", l);
-        f.getParentFile().mkdirs();
+        if (!f.getParentFile().mkdirs()) {
+            return false;
+        }
         try {
             NbtIo.write(c, f);
         } catch (IOException e) {
@@ -557,10 +559,20 @@ public class VillagerRoller extends Module {
         }
     }
 
+    private void placeFailed(String msg) {
+        if (failedToPlacePrevMsg + failedToPlaceDelay.get() <= System.currentTimeMillis()) {
+            info(msg);
+            failedToPlacePrevMsg = System.currentTimeMillis();
+        }
+        if (failedToPlaceDisable.get()) {
+            toggle();
+        }
+    }
+
     @EventHandler
     private void onTick(TickEvent.Pre event) {
+        assert mc.world != null;
         if (currentState == State.RollingBreakingBlock) {
-            assert mc.world != null;
             if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                 // info("Block is broken, waiting for villager to clean profession...");
                 currentState = State.RollingWaitingForVillagerProfessionClear;
@@ -571,35 +583,41 @@ public class VillagerRoller extends Module {
                 }
             }
         } else if (currentState == State.RollingWaitingForVillagerProfessionClear) {
+            if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                info("Rolling block mining reverted?");
+                currentState = State.RollingBreakingBlock;
+                return;
+            }
             if (rollingVillager.getVillagerData().getProfession() == VillagerProfession.NONE) {
                 // info("Profession cleared");
                 currentState = State.RollingPlacingBlock;
             }
         } else if (currentState == State.RollingPlacingBlock) {
             FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
-            if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                if (failedToPlaceDisable.get()) {
-                    info("Failed to place block, roller disabled");
-                    toggle();
-                } else {
-                    if (failedToPlaceDelayLeft <= 0) {
-                        info("Failed to place block, please place it manually");
-                        failedToPlaceDelayLeft += failedToPlaceDelay.get();
-                    } else {
-                        failedToPlaceDelayLeft--;
-                    }
-                }
-            } else {
-                currentState = State.RollingWaitingForVillagerProfessionNew;
+            if (!item.found()) {
+                placeFailed("Lectern not found in hotbar");
+                return;
             }
-            // } else if(currentState == State.RollingPlacingBlockRetry) {
-            // if(retryPlaceIn > 0) {
-            // retryPlaceIn--;
-            // } else {
-            // info("Trying to place block again");
-            // currentState = State.RollingPlacingBlock;
-            // }
+            if (!BlockUtils.canPlace(rollingBlockPos, true)) {
+                placeFailed("Can't place lectern");
+                return;
+            }
+            if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
+                placeFailed("Failed to place lectern");
+                return;
+            }
+            currentState = State.RollingWaitingForVillagerProfessionNew;
         } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
+            if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                info("Lectern placement reverted by server (AC?)");
+                currentState = State.RollingPlacingBlock;
+                return;
+            }
+            if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                info("Placed wrong block?!");
+                currentState = State.RollingBreakingBlock;
+                return;
+            }
             if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
                 currentState = State.RollingWaitingForVillagerTrades;
                 triggerInteract();
