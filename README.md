@@ -65,3 +65,5 @@ Integrating Villager Roller into other clients without modifying underlying feat
 ## License
 
 GPL-3.0, see LICENSE in project root
+
+## I did not gave permission to publish this mod on CurseForge
