@@ -10,17 +10,17 @@ We have [Discord server](https://discord.com/invite/DFsMKWJJPN)
 
 ## Versions
 
-| Minecraft | Meteor           | Supported   | Download                                                                                                                                |
-|-----------|------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| 1.20      | 0.5.4            | Report bugs | [1.3.9](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.9/villager-roller-1.3.9+mc1.20-rev.a6b847d.jar)   |
-| 1.19.4    | 0.5.3-dev >1817  | Yes         | [1.3.8](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.8/villager-roller-1.3.8+mc1.19.4-rev.68bc23f.jar) |
-| 1.19.3    | 0.5.2-dev >1714  | No          | [1.3.6](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.6/villager-roller-1.3.6+mc1.19.3-rev.0700d38.jar) |
-| 1.19.2    | 0.5.1-dev >1573  | No          | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.4/villager-roller-1.3.4+mc1.19.2-rev.f2c071c.jar) |
-| 1.19.1    | 0.5.1-dev >1570  | No          | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar) |
-| 1.19      | 0.5.0-dev >=1563 | No          | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.1/villager-roller-1.3.1+mc1.19-build.34.jar)      |
-| 1.19      | 0.5.0-dev <1563  | No          | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar)         |
-| 1.18.2    | 0.4.9            | No          | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.18.2-rev.3d6f694.jar)       |
-| 1.18.1    | ?                | No          | [1.2.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.2.1/villager-roller-1.2.1.jar)                      |
+| Minecraft   | Meteor           | Supported | Download                                                                                                                                      |
+|-------------|------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.20/1.20.1 | 0.5.4-dev >1846  | Yes       | [1.4.0](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.0/villager-roller-1.4.0+mc1.20.1-rev.2377841.jar)       |
+| 1.19.4      | 0.5.3-dev >1817  | Yes       | [1.4.0](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.0/villager-roller-1.4.0+mc1.19.4-rev.2377841-dirty.jar) |
+| 1.19.3      | 0.5.2-dev >1714  | No        | [1.3.6](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.6/villager-roller-1.3.6+mc1.19.3-rev.0700d38.jar)       |
+| 1.19.2      | 0.5.1-dev >1573  | No        | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.4/villager-roller-1.3.4+mc1.19.2-rev.f2c071c.jar)       |
+| 1.19.1      | 0.5.1-dev >1570  | No        | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar)       |
+| 1.19        | 0.5.0-dev >=1563 | No        | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.1/villager-roller-1.3.1+mc1.19-build.34.jar)            |
+| 1.19        | 0.5.0-dev <1563  | No        | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar)               |
+| 1.18.2      | 0.4.9            | No        | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.18.2-rev.3d6f694.jar)             |
+| 1.18.1      | ?                | No        | [1.2.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.2.1/villager-roller-1.2.1.jar)                            |
 
 Download links for older versions are here only for archival reasons, do not use them.
 
