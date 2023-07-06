@@ -319,6 +319,7 @@ public class VillagerRoller extends Module {
         table.add(theme.label("Remove"));
         table.row();
         if (sortEnchantments.get()) {
+            searchingEnchants.removeIf(ench -> ench.enchantment == null);
             searchingEnchants.sort(Comparator.comparing(o -> o.enchantment));
         }
 
@@ -508,7 +509,7 @@ public class VillagerRoller extends Module {
             WTable table = theme.table();
             table.minWidth = 400;
 
-            WTextBox filter = add(theme.textBox(filterText)).minWidth(400).expandX().widget();
+            WTextBox filter = add(theme.textBox(filterText, "Search")).minWidth(400).expandX().widget();
             filter.setFocused(true);
             filter.setCursorMax();
             filter.action = () -> {
@@ -516,33 +517,22 @@ public class VillagerRoller extends Module {
                 table.clear();
                 fillTable(table);
             };
-            filter.actionOnUnfocused = () -> {
-                int n = 0;
-                Enchantment ench = null;
-                for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
-                    if (!filterText.equals("") && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
-                        continue;
-                    }
-                    n++;
-                    ench = e;
-                    if(n == 2) {
-                        return;
-                    }
-                }
-                if(n == 1) {
-                    callback.Selection(new rollingEnchantment(Registries.ENCHANTMENT.getId(ench), 0, 0, true));
-                    close();
-                }
-            };
 
             WHorizontalList customList = add(theme.horizontalList()).expandX().widget();
-            WTextBox cc = customList.add(theme.textBox("","Custom")).expandX().expandWidgetX().widget();
+            WTextBox cc = customList.add(theme.textBox("", "Custom")).expandX().expandWidgetX().widget();
             WButton ca = customList.add(theme.button("Select")).widget();
             ca.action = () -> {
-                callback.Selection(new rollingEnchantment(Identifier.tryParse(cc.get()), 0, 0, true));
+                String idtext = cc.get();
+                if(idtext.length() == 0) {
+                    return;
+                }
+                Identifier id = Identifier.tryParse(cc.get());
+                if(id == null) {
+                    return;
+                }
+                callback.Selection(new rollingEnchantment(id, 0, 0, true));
                 close();
             };
-            cc.actionOnUnfocused = ca.action;
 
             add(table);
             fillTable(table);
