@@ -1,5 +1,6 @@
 package maxsuperman.addons.roller.modules;
 
+import com.google.common.collect.Maps;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -31,6 +32,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -38,6 +40,7 @@ import net.minecraft.nbt.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
@@ -48,17 +51,21 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 
+import static net.minecraft.enchantment.EnchantmentHelper.getIdFromNbt;
+import static net.minecraft.enchantment.EnchantmentHelper.getLevelFromNbt;
 import static net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER;
 
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgSound = settings.createGroup("Sound");
 
     private final Setting<Boolean> disableIfFound = sgGeneral.add(new BoolSetting.Builder()
-            .name("disable-when-found")
-            .description("Disable enchantment from list if found")
-            .defaultValue(true)
-            .build());
+        .name("disable-when-found")
+        .description("Disable enchantment from list if found")
+        .defaultValue(true)
+        .build());
 
     private final Setting<Boolean> saveListToConfig = sgGeneral.add(new BoolSetting.Builder()
         .name("save-list-to-config")
@@ -67,38 +74,38 @@ public class VillagerRoller extends Module {
         .build());
 
     private final Setting<Boolean> enablePlaySound = sgGeneral.add(new BoolSetting.Builder()
-            .name("enable-sound")
-            .description("Plays sound when it finds desired trade")
-            .defaultValue(true)
-            .build());
+        .name("enable-sound")
+        .description("Plays sound when it finds desired trade")
+        .defaultValue(true)
+        .build());
 
     private final Setting<List<SoundEvent>> sound = sgSound.add(new SoundEventListSetting.Builder()
-            .name("sound-to-play")
-            .description("Sound that will be played when desired trade is found if enabled")
-            .defaultValue(Collections.singletonList(BLOCK_AMETHYST_CLUSTER_BREAK))
-            .build());
+        .name("sound-to-play")
+        .description("Sound that will be played when desired trade is found if enabled")
+        .defaultValue(Collections.singletonList(BLOCK_AMETHYST_CLUSTER_BREAK))
+        .build());
 
     private final Setting<Double> soundPitch = sgSound.add(new DoubleSetting.Builder()
-            .name("sound-pitch")
-            .description("Playing sound pitch")
-            .defaultValue(1.0)
-            .min(0)
-            .sliderRange(0, 8)
-            .build());
+        .name("sound-pitch")
+        .description("Playing sound pitch")
+        .defaultValue(1.0)
+        .min(0)
+        .sliderRange(0, 8)
+        .build());
 
     private final Setting<Double> soundVolume = sgSound.add(new DoubleSetting.Builder()
-            .name("sound-volume")
-            .description("Playing sound volume")
-            .defaultValue(1.0)
-            .min(0)
-            .sliderRange(0, 1)
-            .build());
+        .name("sound-volume")
+        .description("Playing sound volume")
+        .defaultValue(1.0)
+        .min(0)
+        .sliderRange(0, 1)
+        .build());
 
     private final Setting<Boolean> pauseOnScreen = sgGeneral.add(new BoolSetting.Builder()
-            .name("pause-on-screens")
-            .description("Pauses rolling if any screen is open")
-            .defaultValue(true)
-            .build());
+        .name("pause-on-screens")
+        .description("Pauses rolling if any screen is open")
+        .defaultValue(true)
+        .build());
 
     private final Setting<Boolean> headRotateOnPlace = sgGeneral.add(new BoolSetting.Builder()
         .name("rotate-place")
@@ -230,8 +237,11 @@ public class VillagerRoller extends Module {
         }
         NbtCompound c = new NbtCompound();
         c.put("rolling", l);
-        if (!f.getParentFile().mkdirs()) {
-            return false;
+        if (Files.notExists(f.getParentFile().toPath())) {
+            if (!f.getParentFile().mkdirs()) {
+                info("Failed to make directories");
+                return false;
+            }
         }
         try {
             NbtIo.write(c, f);
@@ -309,27 +319,39 @@ public class VillagerRoller extends Module {
         table.add(theme.label("Remove"));
         table.row();
         if (sortEnchantments.get()) {
-            searchingEnchants.sort((o1, o2) -> Names.get(o1.enchantment).compareToIgnoreCase(Names.get(o2.enchantment)));
+            searchingEnchants.sort(Comparator.comparing(o -> o.enchantment));
         }
-        for (rollingEnchantment e : searchingEnchants) {
+
+        for (int i = 0; i < searchingEnchants.size(); i++) {
+            rollingEnchantment e = searchingEnchants.get(i);
+            final int si = i;
             ItemStack book = Items.ENCHANTED_BOOK.getDefaultStack();
-            book.addEnchantment(e.enchantment, e.minLevel < 0 ? e.enchantment.getMaxLevel() : e.minLevel);
+            int maxlevel = 255;
+            if(e.isVanilla()) {
+                Enchantment ench = Registries.ENCHANTMENT.get(e.enchantment);
+                maxlevel = e.getMaxLevel();
+                book.addEnchantment(ench, e.minLevel == 0 ? maxlevel : e.minLevel);
+            }
             table.add(theme.item(book));
 
             WHorizontalList label = theme.horizontalList();
             WButton c = label.add(theme.button("Change")).widget();
-            c.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (Enchantment sel) -> {
-                e.enchantment = sel;
+            c.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (rollingEnchantment sel) -> {
+                searchingEnchants.set(si, sel);
                 list.clear();
                 fillWidget(theme, list);
             }));
-            label.add(theme.label(Names.get(e.enchantment)));
+            if(e.isCustom()) {
+                label.add(theme.label(e.enchantment.toString()));
+            } else {
+                Registries.ENCHANTMENT.getOrEmpty(e.enchantment).ifPresent(en -> label.add(theme.label(Names.get(en))));
+            }
             table.add(label);
 
-            WIntEdit lev = table.add(theme.intEdit(e.minLevel, 0, e.enchantment.getMaxLevel(), true)).minWidth(40)
+            WIntEdit lev = table.add(theme.intEdit(e.minLevel, 0, maxlevel, true)).minWidth(40)
                     .expandX().widget();
             lev.action = () -> e.minLevel = lev.get();
-            lev.tooltip = "Minimum enchantment level, 0 acts as maximum possible only";
+            lev.tooltip = "Minimum enchantment level, 0 acts as maximum possible only (for custom 0 acts like 1)";
 
             var costbox = table.add(theme.horizontalList()).minWidth(50).expandX().widget();
             WIntEdit cost = costbox.add(theme.intEdit(e.maxCost, 0, 64, false)).minWidth(40).expandX().widget();
@@ -337,10 +359,12 @@ public class VillagerRoller extends Module {
             cost.tooltip = "Maximum cost in emeralds, 0 means no limit";
 
             var setOptimal = costbox.add(theme.button("O")).widget();
-            setOptimal.tooltip = "Set to optimal price (5 + minLevel*3) (double if treasure)";
+            setOptimal.tooltip = "Set to optimal price (5 + maxLevel*3) (double if treasure) (if known)";
             setOptimal.action = () -> {
                 list.clear();
-                e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
+                if(e.isVanilla()) {
+                    e.maxCost = getMinimumPrice(Registries.ENCHANTMENT.get(e.enchantment), e.getMaxLevel());
+                }
                 fillWidget(theme, list);
             };
 
@@ -368,7 +392,12 @@ public class VillagerRoller extends Module {
 
         WButton create = controls.add(theme.button("Add")).expandX().widget();
         create.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (e) -> {
-            searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), true));
+            if(e.isVanilla()) {
+                e.minLevel = e.getMaxLevel();
+                e.maxCost = getMinimumPrice(Registries.ENCHANTMENT.get(e.enchantment), e.minLevel);
+            }
+            e.enabled = true;
+            searchingEnchants.add(e);
             list.clear();
             fillWidget(theme, list);
         }));
@@ -378,7 +407,7 @@ public class VillagerRoller extends Module {
             list.clear();
             searchingEnchants.clear();
             for (Enchantment e : Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList()) {
-                searchingEnchants.add(new rollingEnchantment(e, e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
+                searchingEnchants.add(new rollingEnchantment(Registries.ENCHANTMENT.getId(e), e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), false));
             }
             fillWidget(theme, list);
         };
@@ -388,7 +417,10 @@ public class VillagerRoller extends Module {
         setOptimalForAll.action = () -> {
             list.clear();
             for (rollingEnchantment e : searchingEnchants) {
-                e.maxCost = getMinimumPrice(e.enchantment, e.enchantment.getMaxLevel());
+                if (e.isVanilla()) {
+                    Enchantment ench = Registries.ENCHANTMENT.get(e.enchantment);
+                    e.maxCost = getMinimumPrice(ench, e.getMaxLevel());
+                }
             }
             fillWidget(theme, list);
         };
@@ -397,7 +429,9 @@ public class VillagerRoller extends Module {
         priceBumpUp.action = () -> {
             list.clear();
             for (rollingEnchantment e : searchingEnchants) {
-                e.maxCost++;
+                if(e.maxCost < 64) {
+                    e.maxCost++;
+                }
             }
             fillWidget(theme, list);
         };
@@ -406,7 +440,9 @@ public class VillagerRoller extends Module {
         priceBumpDown.action = () -> {
             list.clear();
             for (rollingEnchantment e : searchingEnchants) {
-                e.maxCost--;
+                if(e.maxCost > 0) {
+                    e.maxCost--;
+                }
             }
             fillWidget(theme, list);
         };
@@ -442,20 +478,24 @@ public class VillagerRoller extends Module {
 
     }
 
-    public int getMinimumPrice(Enchantment e, int l) {
+    public static int getMinimumPrice(Enchantment e, int l) {
 //      TradeOffers.EnchantBookFactory.create()
 //      Lnet/minecraft/village/TradeOffers$EnchantBookFactory;create(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/random/Random;)Lnet/minecraft/village/TradeOffer;
+        if(e == null) {
+            return 0;
+        }
         return e.isTreasure() ? (2 + 3*l)*2 : 2 + 3*l;
     }
 
     public interface EnchantmentSelectCallback {
-        void Selection(Enchantment e);
+        void Selection(rollingEnchantment e);
     }
 
     public static class EnchantmentSelectScreen extends WindowScreen {
         private final List<Enchantment> available = Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
         private final GuiTheme theme;
         private final EnchantmentSelectCallback callback;
+        private String filterText = "";
 
         public EnchantmentSelectScreen(GuiTheme theme1, EnchantmentSelectCallback callback1) {
             super(theme1, "Select enchantment");
@@ -465,18 +505,63 @@ public class VillagerRoller extends Module {
 
         @Override
         public void initWidgets() {
-            WTable table = add(theme.table()).widget();
+            WTable table = theme.table();
+            table.minWidth = 400;
+
+            WTextBox filter = add(theme.textBox(filterText)).minWidth(400).expandX().widget();
+            filter.setFocused(true);
+            filter.setCursorMax();
+            filter.action = () -> {
+                filterText = filter.get().trim();
+                table.clear();
+                fillTable(table);
+            };
+            filter.actionOnUnfocused = () -> {
+                int n = 0;
+                Enchantment ench = null;
+                for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
+                    if (!filterText.equals("") && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
+                        continue;
+                    }
+                    n++;
+                    ench = e;
+                    if(n == 2) {
+                        return;
+                    }
+                }
+                if(n == 1) {
+                    callback.Selection(new rollingEnchantment(Registries.ENCHANTMENT.getId(ench), 0, 0, true));
+                    close();
+                }
+            };
+
+            WHorizontalList customList = add(theme.horizontalList()).expandX().widget();
+            WTextBox cc = customList.add(theme.textBox("","Custom")).expandX().expandWidgetX().widget();
+            WButton ca = customList.add(theme.button("Select")).widget();
+            ca.action = () -> {
+                callback.Selection(new rollingEnchantment(Identifier.tryParse(cc.get()), 0, 0, true));
+                close();
+            };
+            cc.actionOnUnfocused = ca.action;
+
+            add(table);
+            fillTable(table);
+        }
+
+        private void fillTable(WTable table) {
             for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
+                if (!filterText.equals("") && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
+                    continue;
+                }
                 table.add(theme.label(Names.get(e))).expandCellX();
                 WButton a = table.add(theme.button("Select")).widget();
                 a.action = () -> {
-                    callback.Selection(e);
+                    callback.Selection(new rollingEnchantment(Registries.ENCHANTMENT.getId(e), e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), true));
                     close();
                 };
                 table.row();
             }
         }
-
     }
 
     public void triggerInteract() {
@@ -488,40 +573,75 @@ public class VillagerRoller extends Module {
         }
     }
 
+    public Map<Identifier, Integer> getEnchants(ItemStack stack) {
+        Map<Identifier, Integer> ret = Maps.newLinkedHashMap();
+        if(!stack.isOf(Items.ENCHANTED_BOOK) || stack.getNbt() == null) {
+            return ret;
+        }
+        NbtList list = stack.getNbt().getList("StoredEnchantments", NbtElement.COMPOUND_TYPE);
+        for(int i = 0; i < list.size(); ++i) {
+            NbtCompound c = list.getCompound(i);
+            Identifier id = getIdFromNbt(c);
+            if(id == null) {
+                continue;
+            }
+            ret.put(id, getLevelFromNbt(c));
+        }
+        list = stack.getNbt().getList("Enchantments", NbtElement.COMPOUND_TYPE);
+        for(int i = 0; i < list.size(); ++i) {
+            NbtCompound c = list.getCompound(i);
+            Identifier id = getIdFromNbt(c);
+            if(id == null) {
+                continue;
+            }
+            ret.put(id, getLevelFromNbt(c));
+        }
+        return ret;
+    }
+
     public void triggerTradeCheck(TradeOfferList l) {
         if (currentState != State.RollingWaitingForVillagerTrades) {
             return;
         }
         for (TradeOffer offer : l) {
             // info(String.format("Offer: %s", offer.getSellItem().toString()));
-            Map<Enchantment, Integer> offerEnchants = EnchantmentHelper.get(offer.getSellItem());
-            for (Map.Entry<Enchantment, Integer> enchant : offerEnchants.entrySet()) {
+            ItemStack sellItem = offer.getSellItem();
+
+            Map<Identifier, Integer> sellingEnchants = getEnchants(sellItem);
+
+            for (Map.Entry<Identifier, Integer> enchant : sellingEnchants.entrySet()) {
+                int enchantLevel = enchant.getValue();
+                Identifier enchantId = enchant.getKey();
+                String enchantName = getEnchantmentName(enchantId);
+                String enchantIdString = enchantId.toString();
                 // level enchant.getValue()
                 // enchantment enchant.getKey()
                 boolean found = false;
                 for (rollingEnchantment e : searchingEnchants) {
-                    if (!e.enabled || enchant.getKey() != e.enchantment) {
+                    if (!e.enabled) {
+                        continue;
+                    }
+                    if (!e.enchantment.toString().equals(enchantIdString)) {
                         continue;
                     }
                     found = true;
                     if (e.minLevel <= 0) {
-                        if (enchant.getValue() != e.enchantment.getMaxLevel()) {
+                        int ml = e.getMaxLevel();
+                        if (!e.isCustom() && enchantLevel != ml) {
                             info(String.format("Found enchant %s but it is not max level: %d (max) > %d (found)",
-                                    Names.get(e.enchantment), e.enchantment.getMaxLevel(), enchant.getValue()));
+                                enchantName, ml, enchantLevel));
                             continue;
                         }
                     } else {
-                        if (e.minLevel > enchant.getValue()) {
-                            info(String.format(
-                                    "Found enchant %s but it has too low level: %d (requested level) > %d (rolled level)",
-                                    Names.get(e.enchantment), e.minLevel, enchant.getValue()));
+                        if (e.minLevel > enchantLevel) {
+                            info(String.format("Found enchant %s but it has too low level: %d (requested level) > %d (rolled level)",
+                                enchantName, e.minLevel, enchantLevel));
                             continue;
                         }
                     }
                     if (e.maxCost > 0 && offer.getOriginalFirstBuyItem().getCount() > e.maxCost) {
                         info(String.format("Found enchant %s but it costs too much: %s (max price) < %d (cost)",
-                                Names.get(e.enchantment),
-                                e.maxCost, offer.getOriginalFirstBuyItem().getCount()));
+                            enchantName, e.maxCost, offer.getOriginalFirstBuyItem().getCount()));
                         continue;
                     }
                     if (disableIfFound.get()) {
@@ -535,9 +655,7 @@ public class VillagerRoller extends Module {
                     break;
                 }
                 if (!found) {
-                    info(String.format("Found enchant %s but it is not in the list.", Names.get(enchant.getKey()))); // StringHelper.stripTextFormat(new
-                                                                                                                     // TranslatableText(enchant.getKey().getTranslationKey()).getString()),
-                                                                                                                     // enchant.getValue().toString()));
+                    info(String.format("Found enchant %s but it is not in the list.", enchantName));
                 }
             }
         }
@@ -625,13 +743,22 @@ public class VillagerRoller extends Module {
         }
     }
 
+    public String getEnchantmentName(Identifier id) {
+        String ret = id.toString();
+        var e = Registries.ENCHANTMENT.getOrEmpty(id);
+        if (e.isPresent()) {
+            ret = Names.get(e.get());
+        }
+        return ret;
+    }
+
     public static class rollingEnchantment implements ISerializable<rollingEnchantment> {
-        public Enchantment enchantment;
+        public Identifier enchantment;
         public int minLevel;
         public int maxCost;
         public boolean enabled;
 
-        public rollingEnchantment(Enchantment _enchantment, int _minLevel, int _maxCost, boolean _enabled) {
+        public rollingEnchantment(Identifier _enchantment, int _minLevel, int _maxCost, boolean _enabled) {
             this.enchantment = _enchantment;
             this.minLevel = _minLevel;
             this.maxCost = _maxCost;
@@ -639,7 +766,7 @@ public class VillagerRoller extends Module {
         }
 
         public rollingEnchantment() {
-            this.enchantment = Enchantment.byRawId(0);
+            this.enchantment = Registries.ENCHANTMENT.getId(Enchantments.PROTECTION);
             this.minLevel = 0;
             this.maxCost = 0;
             this.enabled = false;
@@ -648,7 +775,7 @@ public class VillagerRoller extends Module {
         @Override
         public NbtCompound toTag() {
             NbtCompound tag = new NbtCompound();
-            tag.putInt("enchantment", Registries.ENCHANTMENT.getRawId(this.enchantment));
+            tag.putString("enchantment", this.enchantment.toString());
             tag.putInt("minLevel", this.minLevel);
             tag.putInt("maxCost", this.maxCost);
             tag.putBoolean("enabled", this.enabled);
@@ -657,11 +784,34 @@ public class VillagerRoller extends Module {
 
         @Override
         public rollingEnchantment fromTag(NbtCompound tag) {
-            this.enchantment = Enchantment.byRawId(tag.getInt("enchantment"));
+            this.enchantment = Identifier.tryParse(tag.getString("enchantment"));
             this.minLevel = tag.getInt("minLevel");
             this.maxCost = tag.getInt("maxCost");
             this.enabled = tag.getBoolean("enabled");
             return this;
+        }
+
+        public boolean isCustom() {
+            return !Registries.ENCHANTMENT.containsId(this.enchantment);
+        }
+        public boolean isVanilla() {
+            return Registries.ENCHANTMENT.containsId(this.enchantment);
+        }
+        public int getMaxLevel() {
+            int maxlevel = 0;
+            var e = Registries.ENCHANTMENT.getOrEmpty(this.enchantment);
+            if (e.isPresent()) {
+                maxlevel = e.get().getMaxLevel();
+            }
+            return maxlevel;
+        }
+        public String getName() {
+            String ret = this.enchantment.toString();
+            var e = Registries.ENCHANTMENT.getOrEmpty(this.enchantment);
+            if (e.isPresent()) {
+                ret = Names.get(e.get());
+            }
+            return ret;
         }
     }
 }
