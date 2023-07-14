@@ -724,8 +724,10 @@ public class VillagerRoller extends Module {
                 return;
             }
             currentState = State.RollingWaitingForVillagerProfessionNew;
-            if (maxProfessionWaitTime.get() > 0) currentProfessionWaitTime = System.currentTimeMillis();
-            } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
+            if (maxProfessionWaitTime.get() > 0) {
+                currentProfessionWaitTime = System.currentTimeMillis();
+            }
+        } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
             if (maxProfessionWaitTime.get() > 0) {
                 if (currentProfessionWaitTime + maxProfessionWaitTime.get() <= System.currentTimeMillis()) {
                     info("Villager did not take profession within the specified time");
