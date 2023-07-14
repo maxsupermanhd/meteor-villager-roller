@@ -31,12 +31,14 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.nbt.*;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Hand;
@@ -54,8 +56,6 @@ import java.util.*;
 import static net.minecraft.enchantment.EnchantmentHelper.getIdFromNbt;
 import static net.minecraft.enchantment.EnchantmentHelper.getLevelFromNbt;
 import static net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER;
 
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -127,6 +127,14 @@ public class VillagerRoller extends Module {
         .defaultValue(false)
         .build());
 
+    private final Setting<Integer> maxProfessionWaitTime = sgGeneral.add(new IntSetting.Builder()
+        .name("max-profession-wait-time")
+        .description("Time to wait if villager does not take profession (milliseconds). Zero = unlimited.")
+        .defaultValue(0)
+        .min(0)
+        .sliderRange(0, 10000)
+        .build());
+
     private final Setting<Boolean> sortEnchantments = sgGeneral.add(new BoolSetting.Builder()
         .name("sort-enchantments")
         .description("Show enchantments sorted by their name")
@@ -151,6 +159,7 @@ public class VillagerRoller extends Module {
     public VillagerEntity rollingVillager;
     public List<rollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
+    private long currentProfessionWaitTime;
 
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
@@ -715,7 +724,15 @@ public class VillagerRoller extends Module {
                 return;
             }
             currentState = State.RollingWaitingForVillagerProfessionNew;
-        } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
+            if (maxProfessionWaitTime.get() > 0) currentProfessionWaitTime = System.currentTimeMillis();
+            } else if (currentState == State.RollingWaitingForVillagerProfessionNew) {
+            if (maxProfessionWaitTime.get() > 0) {
+                if (currentProfessionWaitTime + maxProfessionWaitTime.get() <= System.currentTimeMillis()) {
+                    info("Villager did not take profession within the specified time");
+                    currentState = State.RollingBreakingBlock;
+                    return;
+                }
+            }
             if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                 info("Lectern placement reverted by server (AC?)");
                 currentState = State.RollingPlacingBlock;
