@@ -47,6 +47,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
+import baritone.api.BaritoneAPI;
 
 import java.io.File;
 import java.io.IOException;
@@ -111,6 +112,11 @@ public class VillagerRoller extends Module {
         .name("rotate-place")
         .description("Look to the block while placing it?")
         .defaultValue(true)
+        .build());
+    private final Setting<Boolean> baritonePlacing = sgGeneral.add(new BoolSetting.Builder()
+        .name("baritone-place")
+        .description("Use baritone for placing lectern\nNot compatible with rotateplace\nWill also clear #sel selections\nUse if block placement is reverted by server")
+        .defaultValue(false)
         .build());
 
     private final Setting<Integer> failedToPlaceDelay = sgGeneral.add(new IntSetting.Builder()
@@ -302,7 +308,7 @@ public class VillagerRoller extends Module {
                 error("Failed to list directory", e);
             }
         }
-        if (fnames.size() != 0) {
+        if (!fnames.isEmpty()) {
             WDropdown<String> lfname = control.add(theme.dropdown(fnames.toArray(new String[0]), "default"))
                 .expandWidgetX().expandCellX().expandX().widget();
             WButton load = control.add(theme.button("Load")).expandX().widget();
@@ -359,7 +365,7 @@ public class VillagerRoller extends Module {
             table.add(label);
 
             WIntEdit lev = table.add(theme.intEdit(e.minLevel, 0, maxlevel, true)).minWidth(40)
-                    .expandX().widget();
+                .expandX().widget();
             lev.action = () -> e.minLevel = lev.get();
             lev.tooltip = "Minimum enchantment level, 0 acts as maximum possible only (for custom 0 acts like 1)";
 
@@ -532,7 +538,7 @@ public class VillagerRoller extends Module {
             WButton ca = customList.add(theme.button("Select")).widget();
             ca.action = () -> {
                 String idtext = cc.get();
-                if(idtext.length() == 0) {
+                if(idtext.isEmpty()) {
                     return;
                 }
                 Identifier id = Identifier.tryParse(cc.get());
@@ -549,7 +555,7 @@ public class VillagerRoller extends Module {
 
         private void fillTable(WTable table) {
             for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
-                if (!filterText.equals("") && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
+                if (!filterText.isEmpty() && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
                     continue;
                 }
                 table.add(theme.label(Names.get(e))).expandCellX();
@@ -647,9 +653,9 @@ public class VillagerRoller extends Module {
                         e.enabled = false;
                     }
                     toggle();
-                    if (enablePlaySound.get() && sound.get().size() > 0) {
+                    if (enablePlaySound.get() && !sound.get().isEmpty()) {
                         mc.getSoundManager().play(PositionedSoundInstance.master(this.sound.get().get(0),
-                                soundPitch.get().floatValue(), soundVolume.get().floatValue()));
+                            soundPitch.get().floatValue(), soundVolume.get().floatValue()));
                     }
                     break;
                 }
@@ -715,13 +721,27 @@ public class VillagerRoller extends Module {
                 placeFailed("Lectern not found in hotbar");
                 return;
             }
-            if (!BlockUtils.canPlace(rollingBlockPos, true)) {
-                placeFailed("Can't place lectern");
+            if (baritonePlacing.get()) {
+                int x = rollingBlockPos.getX();
+                int y = rollingBlockPos.getY();
+                int z = rollingBlockPos.getZ();
+                // Use Baritone to place the lectern block
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 1 "+x+" "+y+" "+z);
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 2 "+x+" "+y+" "+z);
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                currentState = State.RollingWaitingForVillagerProfessionNew;
                 return;
-            }
-            if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                placeFailed("Failed to place lectern");
-                return;
+            } else {
+                if (!BlockUtils.canPlace(rollingBlockPos, true)) {
+                    placeFailed("Can't place lectern");
+                    return;
+                }
+                if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
+                    placeFailed("Failed to place lectern");
+                    return;
+                }
             }
             currentState = State.RollingWaitingForVillagerProfessionNew;
             if (maxProfessionWaitTime.get() > 0) {
@@ -735,10 +755,13 @@ public class VillagerRoller extends Module {
                     return;
                 }
             }
-            if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
-                info("Lectern placement reverted by server (AC?)");
-                currentState = State.RollingPlacingBlock;
-                return;
+            if(!baritonePlacing.get()) {
+                //This can (most of the time) never happen with baritone
+                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                    info("Lectern placement reverted by server (AC?)");
+                    currentState = State.RollingPlacingBlock;
+                    return;
+                }
             }
             if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
                 info("Placed wrong block?!");
