@@ -762,11 +762,11 @@ public class VillagerRoller extends Module {
                     currentState = State.RollingPlacingBlock;
                     return;
                 }
-            }
             if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
                 info("Placed wrong block?!");
                 currentState = State.RollingBreakingBlock;
                 return;
+            }
             }
             if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
                 currentState = State.RollingWaitingForVillagerTrades;
