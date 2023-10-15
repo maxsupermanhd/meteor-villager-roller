@@ -31,6 +31,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
@@ -41,6 +42,7 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -52,10 +54,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-
-import static net.minecraft.enchantment.EnchantmentHelper.getIdFromNbt;
-import static net.minecraft.enchantment.EnchantmentHelper.getLevelFromNbt;
-import static net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK;
 
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -82,7 +80,7 @@ public class VillagerRoller extends Module {
     private final Setting<List<SoundEvent>> sound = sgSound.add(new SoundEventListSetting.Builder()
         .name("sound-to-play")
         .description("Sound that will be played when desired trade is found if enabled")
-        .defaultValue(Collections.singletonList(BLOCK_AMETHYST_CLUSTER_BREAK))
+        .defaultValue(Collections.singletonList(SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK))
         .build());
 
     private final Setting<Double> soundPitch = sgSound.add(new DoubleSetting.Builder()
@@ -580,20 +578,20 @@ public class VillagerRoller extends Module {
         NbtList list = stack.getNbt().getList("StoredEnchantments", NbtElement.COMPOUND_TYPE);
         for(int i = 0; i < list.size(); ++i) {
             NbtCompound c = list.getCompound(i);
-            Identifier id = getIdFromNbt(c);
+            Identifier id = EnchantmentHelper.getIdFromNbt(c);
             if(id == null) {
                 continue;
             }
-            ret.put(id, getLevelFromNbt(c));
+            ret.put(id, EnchantmentHelper.getLevelFromNbt(c));
         }
         list = stack.getNbt().getList("Enchantments", NbtElement.COMPOUND_TYPE);
         for(int i = 0; i < list.size(); ++i) {
             NbtCompound c = list.getCompound(i);
-            Identifier id = getIdFromNbt(c);
+            Identifier id = EnchantmentHelper.getIdFromNbt(c);
             if(id == null) {
                 continue;
             }
-            ret.put(id, getLevelFromNbt(c));
+            ret.put(id, EnchantmentHelper.getLevelFromNbt(c));
         }
         return ret;
     }
