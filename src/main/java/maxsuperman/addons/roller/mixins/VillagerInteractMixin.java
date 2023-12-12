@@ -14,8 +14,8 @@ class VillagerInteractMixin {
     @Inject(at = @At("HEAD"), method = "interactMob(Lnet/minecraft/entity/player/PlayerEntity;Lnet/minecraft/util/Hand;)Lnet/minecraft/util/ActionResult;", cancellable = true)
     public void interactMob(CallbackInfoReturnable<ActionResult> cir) {
         VillagerRoller roller = Modules.get().get(VillagerRoller.class);
-        if (roller.currentState == VillagerRoller.State.WaitingForTargetVillager) {
-            roller.currentState = VillagerRoller.State.RollingBreakingBlock;
+        if (roller.currentState == VillagerRoller.State.WAITING_FOR_TARGET_VILLAGER) {
+            roller.currentState = VillagerRoller.State.ROLLING_BREAKING_BLOCK;
             roller.rollingVillager = (VillagerEntity) (Object) this;
             roller.info("We got your villager");
             cir.setReturnValue(ActionResult.CONSUME);
