@@ -1,6 +1,7 @@
 package maxsuperman.addons.roller.modules;
 
-import com.google.common.collect.Maps;
+import it.unimi.dsi.fastutil.Pair;
+import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -154,17 +155,17 @@ public class VillagerRoller extends Module {
     );
 
     public enum State {
-        Disabled,
-        WaitingForTargetBlock,
-        WaitingForTargetVillager,
-        RollingBreakingBlock,
-        RollingWaitingForVillagerProfessionClear,
-        RollingPlacingBlock,
-        RollingWaitingForVillagerProfessionNew,
-        RollingWaitingForVillagerTrades
+        DISABLED,
+        WAITING_FOR_TARGET_BLOCK,
+        WAITING_FOR_TARGET_VILLAGER,
+        ROLLING_BREAKING_BLOCK,
+        ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR,
+        ROLLING_PLACING_BLOCK,
+        ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW,
+        ROLLING_WAITING_FOR_VILLAGER_TRADES
     }
 
-    public State currentState = State.Disabled;
+    public State currentState = State.DISABLED;
     public VillagerEntity rollingVillager;
     private BlockPos rollingBlockPos;
     private Block rollingBlock;
@@ -178,13 +179,13 @@ public class VillagerRoller extends Module {
 
     @Override
     public void onActivate() {
-        currentState = State.WaitingForTargetBlock;
+        currentState = State.WAITING_FOR_TARGET_BLOCK;
         info("Attack block you want to roll");
     }
 
     @Override
     public void onDeactivate() {
-        currentState = State.Disabled;
+        currentState = State.DISABLED;
         info("Roller disabled.");
     }
 
@@ -230,7 +231,7 @@ public class VillagerRoller extends Module {
         }
         NbtCompound r = null;
         try {
-            r = NbtIo.read(f);
+            r = NbtIo.read(f.toPath());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -262,7 +263,7 @@ public class VillagerRoller extends Module {
             return false;
         }
         try {
-            NbtIo.write(c, f);
+            NbtIo.write(c, f.toPath());
         } catch (IOException e) {
             e.printStackTrace();
             return false;
@@ -407,8 +408,8 @@ public class VillagerRoller extends Module {
             fillWidget(theme, list);
         };
 
-        WButton create = controls.add(theme.button("Add")).expandX().widget();
-        create.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, e -> {
+        WButton add = controls.add(theme.button("Add")).expandX().widget();
+        add.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, e -> {
             if (e.isVanilla()) {
                 e.minLevel = e.getMaxLevel();
                 e.maxCost = getMinimumPrice(Registries.ENCHANTMENT.get(e.enchantment), e.minLevel);
@@ -568,47 +569,36 @@ public class VillagerRoller extends Module {
         }
     }
 
-    public Map<Identifier, Integer> getEnchants(ItemStack stack) {
-        Map<Identifier, Integer> ret = Maps.newLinkedHashMap();
-        if (!stack.isOf(Items.ENCHANTED_BOOK) || stack.getNbt() == null) {
-            return ret;
-        }
+    public List<Pair<Identifier, Integer>> getEnchants(ItemStack stack) {
+        List<Pair<Identifier, Integer>> ret = new ArrayList<>();
         NbtList list = stack.getNbt().getList("StoredEnchantments", NbtElement.COMPOUND_TYPE);
+        list.addAll(stack.getNbt().getList("Enchantments", NbtElement.COMPOUND_TYPE));
         for (int i = 0; i < list.size(); ++i) {
             NbtCompound c = list.getCompound(i);
             Identifier id = EnchantmentHelper.getIdFromNbt(c);
             if (id == null) continue;
-            ret.put(id, EnchantmentHelper.getLevelFromNbt(c));
-        }
-        list = stack.getNbt().getList("Enchantments", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < list.size(); ++i) {
-            NbtCompound c = list.getCompound(i);
-            Identifier id = EnchantmentHelper.getIdFromNbt(c);
-            if (id == null) continue;
-            ret.put(id, EnchantmentHelper.getLevelFromNbt(c));
+            ret.add(new ObjectIntImmutablePair<>(id, EnchantmentHelper.getLevelFromNbt(c)));
         }
         return ret;
     }
 
     public void triggerTradeCheck(TradeOfferList l) {
-        if (currentState != State.RollingWaitingForVillagerTrades) return;
+        if (currentState != State.ROLLING_WAITING_FOR_VILLAGER_TRADES) return;
         for (TradeOffer offer : l) {
             // info(String.format("Offer: %s", offer.getSellItem().toString()));
             ItemStack sellItem = offer.getSellItem();
+            if (!sellItem.isOf(Items.ENCHANTED_BOOK) || sellItem.getNbt() == null) break;
 
-            Map<Identifier, Integer> sellingEnchants = getEnchants(sellItem);
-
-            for (Map.Entry<Identifier, Integer> enchant : sellingEnchants.entrySet()) {
-                int enchantLevel = enchant.getValue();
-                Identifier enchantId = enchant.getKey();
+            for (Pair<Identifier, Integer> enchant : getEnchants(sellItem)) {
+                int enchantLevel = enchant.right();
+                Identifier enchantId = enchant.left();
                 String enchantName = getEnchantmentName(enchantId);
                 String enchantIdString = enchantId.toString();
                 // level enchant.getValue()
                 // enchantment enchant.getKey()
                 boolean found = false;
                 for (RollingEnchantment e : searchingEnchants) {
-                    if (!e.enabled) continue;
-                    if (!e.enchantment.toString().equals(enchantIdString)) continue;
+                    if (!e.enabled || !e.enchantment.toString().equals(enchantIdString)) continue;
                     found = true;
                     if (e.minLevel <= 0) {
                         int ml = e.getMaxLevel();
@@ -640,15 +630,15 @@ public class VillagerRoller extends Module {
         }
         // ((MerchantScreenHandler)mc.player.currentScreenHandler).closeHandledScreen();
         mc.player.closeHandledScreen();
-        currentState = State.RollingBreakingBlock;
+        currentState = State.ROLLING_BREAKING_BLOCK;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onStartBreakingBlockEvent(StartBreakingBlockEvent event) {
-        if (currentState == State.WaitingForTargetBlock) {
+        if (currentState == State.WAITING_FOR_TARGET_BLOCK) {
             rollingBlockPos = event.blockPos;
             rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
-            currentState = State.WaitingForTargetVillager;
+            currentState = State.WAITING_FOR_TARGET_VILLAGER;
             info("Rolling block selected, now interact with villager you want to roll");
 //            event.cancel(); //Dirty hack
         }
@@ -665,27 +655,27 @@ public class VillagerRoller extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         switch (currentState) {
-            case RollingBreakingBlock -> {
+            case ROLLING_BREAKING_BLOCK -> {
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                     // info("Block is broken, waiting for villager to clean profession...");
-                    currentState = State.RollingWaitingForVillagerProfessionClear;
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                 } else if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
                     info("Can not break block");
                     toggle();
                 }
             }
-            case RollingWaitingForVillagerProfessionClear -> {
+            case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR -> {
                 if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
                     info("Rolling block mining reverted?");
-                    currentState = State.RollingBreakingBlock;
+                    currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
                 if (rollingVillager.getVillagerData().getProfession() == VillagerProfession.NONE) {
                     // info("Profession cleared");
-                    currentState = State.RollingPlacingBlock;
+                    currentState = State.ROLLING_PLACING_BLOCK;
                 }
             }
-            case RollingPlacingBlock -> {
+            case ROLLING_PLACING_BLOCK -> {
                 FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
                 if (!item.found()) {
                     placeFailed("Lectern not found in hotbar");
@@ -699,29 +689,29 @@ public class VillagerRoller extends Module {
                     placeFailed("Failed to place lectern");
                     return;
                 }
-                currentState = State.RollingWaitingForVillagerProfessionNew;
+                currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 if (maxProfessionWaitTime.get() > 0) {
                     currentProfessionWaitTime = System.currentTimeMillis();
                 }
             }
-            case RollingWaitingForVillagerProfessionNew -> {
+            case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW -> {
                 if (maxProfessionWaitTime.get() > 0 && (currentProfessionWaitTime + maxProfessionWaitTime.get() <= System.currentTimeMillis())) {
                     info("Villager did not take profession within the specified time");
-                    currentState = State.RollingBreakingBlock;
+                    currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                     info("Lectern placement reverted by server (AC?)");
-                    currentState = State.RollingPlacingBlock;
+                    currentState = State.ROLLING_PLACING_BLOCK;
                     return;
                 }
                 if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
                     info("Placed wrong block?!");
-                    currentState = State.RollingBreakingBlock;
+                    currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
                 if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
-                    currentState = State.RollingWaitingForVillagerTrades;
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;
                     triggerInteract();
                 }
             }
