@@ -3,7 +3,10 @@ package maxsuperman.addons.roller.modules;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import meteordevelopment.meteorclient.MeteorClient;
+import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
+import meteordevelopment.meteorclient.events.meteor.MouseButtonEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiTheme;
 import meteordevelopment.meteorclient.gui.WindowScreen;
@@ -21,8 +24,10 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.player.MiddleClickExtra;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
 import meteordevelopment.meteorclient.utils.misc.Names;
+import meteordevelopment.meteorclient.utils.misc.input.KeyAction;
 import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
@@ -30,6 +35,7 @@ import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -41,6 +47,9 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.network.NetworkThreadUtils;
+import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
+import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
@@ -57,6 +66,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Stream;
+
+import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE;
+import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT;
 
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -582,8 +594,16 @@ public class VillagerRoller extends Module {
         return ret;
     }
 
-    public void triggerTradeCheck(TradeOfferList l) {
+    private TradeOfferList offersFromNetwork;
+
+    @EventHandler
+    private void onReceivePacket(PacketEvent.Receive event) {
         if (currentState != State.ROLLING_WAITING_FOR_VILLAGER_TRADES) return;
+        if (!(event.packet instanceof SetTradeOffersS2CPacket p)) return;
+        MinecraftClient.getInstance().executeSync(() -> triggerTradeCheck(p.getOffers()));
+    }
+
+    public void triggerTradeCheck(TradeOfferList l) {
         for (TradeOffer offer : l) {
             // info(String.format("Offer: %s", offer.getSellItem().toString()));
             ItemStack sellItem = offer.getSellItem();
@@ -631,6 +651,20 @@ public class VillagerRoller extends Module {
         // ((MerchantScreenHandler)mc.player.currentScreenHandler).closeHandledScreen();
         mc.player.closeHandledScreen();
         currentState = State.ROLLING_BREAKING_BLOCK;
+    }
+
+    @EventHandler
+    private void onInteractEntity(InteractEntityEvent event) {
+        if (currentState != State.WAITING_FOR_TARGET_VILLAGER) {
+            return;
+        }
+        if (!(event.entity instanceof VillagerEntity)) {
+            return;
+        }
+        rollingVillager = (VillagerEntity) event.entity;
+        currentState = State.ROLLING_BREAKING_BLOCK;
+        info("We got your villager");
+        event.cancel();
     }
 
     @EventHandler(priority = EventPriority.HIGH)

@@ -19,9 +19,7 @@
       "maxsuperman.addons.roller.VillagerRollerAddon"
     ]
   },
-  "mixins": [
-    "roller.mixins.json"
-  ],
+  "mixins": [],
   "custom": {
     "meteor-client:color": "0,255,0"
   },
