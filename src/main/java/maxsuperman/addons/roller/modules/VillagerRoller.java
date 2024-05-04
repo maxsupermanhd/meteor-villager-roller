@@ -2,14 +2,13 @@ package maxsuperman.addons.roller.modules;
 
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
+import maxsuperman.addons.roller.gui.screens.EnchantmentSelectScreen;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
-import meteordevelopment.meteorclient.events.meteor.MouseButtonEvent;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiTheme;
-import meteordevelopment.meteorclient.gui.WindowScreen;
 import meteordevelopment.meteorclient.gui.widgets.WWidget;
 import meteordevelopment.meteorclient.gui.widgets.containers.WHorizontalList;
 import meteordevelopment.meteorclient.gui.widgets.containers.WSection;
@@ -24,10 +23,8 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.systems.modules.player.MiddleClickExtra;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
 import meteordevelopment.meteorclient.utils.misc.Names;
-import meteordevelopment.meteorclient.utils.misc.input.KeyAction;
 import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
@@ -35,10 +32,10 @@ import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
@@ -47,8 +44,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.network.NetworkThreadUtils;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
@@ -59,16 +54,18 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
+import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.stream.Stream;
-
-import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_MIDDLE;
-import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_RIGHT;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -166,7 +163,7 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    public enum State {
+    private enum State {
         DISABLED,
         WAITING_FOR_TARGET_BLOCK,
         WAITING_FOR_TARGET_VILLAGER,
@@ -177,8 +174,9 @@ public class VillagerRoller extends Module {
         ROLLING_WAITING_FOR_VILLAGER_TRADES
     }
 
-    public State currentState = State.DISABLED;
-    public VillagerEntity rollingVillager;
+    private static final Path CONFIG_PATH = MeteorClient.FOLDER.toPath().resolve("VillagerRoller");
+    private State currentState = State.DISABLED;
+    private VillagerEntity rollingVillager;
     private BlockPos rollingBlockPos;
     private Block rollingBlock;
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
@@ -236,7 +234,7 @@ public class VillagerRoller extends Module {
         return this;
     }
 
-    public boolean loadSearchingFromFile(File f) {
+    private boolean loadSearchingFromFile(File f) {
         if (!f.exists() || !f.canRead()) {
             info("File does not exist or can not be loaded");
             return false;
@@ -295,10 +293,10 @@ public class VillagerRoller extends Module {
 
         WTable control = loadDataSection.add(theme.table()).expandX().widget();
 
-        WTextBox nfname = control.add(theme.textBox("default")).expandWidgetX().expandCellX().expandX().widget();
+        WTextBox savedConfigName = control.add(theme.textBox("default")).expandWidgetX().expandCellX().expandX().widget();
         WButton save = control.add(theme.button("Save")).expandX().widget();
         save.action = () -> {
-            if (saveSearchingToFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), nfname.get() + ".nbt"))) {
+            if (saveSearchingToFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), savedConfigName.get() + ".nbt"))) {
                 info("Saved successfully");
             } else {
                 info("Save failed");
@@ -308,27 +306,23 @@ public class VillagerRoller extends Module {
         };
         control.row();
 
-        ArrayList<String> fnames = new ArrayList<>();
-        Path path = MeteorClient.FOLDER.toPath().resolve("VillagerRoller");
-        if (Files.notExists(path)) {
-            if (!path.toFile().mkdirs()) {
-                error("Failed to create directory [{}]", path);
-            }
+        ArrayList<String> configs = new ArrayList<>();
+        if (Files.notExists(CONFIG_PATH)) {
+            if (!CONFIG_PATH.toFile().mkdirs()) error("Failed to create directory [{}]", CONFIG_PATH);
         } else {
-            try (Stream<Path> l = Files.list(path)) {
-                l.forEach(p -> {
-                    String name = p.getFileName().toString();
-                    fnames.add(name.substring(0, name.length() - 4));
-                });
+            try (DirectoryStream<Path> configDir = Files.newDirectoryStream(CONFIG_PATH)) {
+                for (Path config : configDir) {
+                    configs.add(FilenameUtils.removeExtension(config.getFileName().toString()));
+                }
             } catch (IOException e) {
                 error("Failed to list directory", e);
             }
         }
-        if (!fnames.isEmpty()) {
-            WDropdown<String> lfname = control.add(theme.dropdown(fnames.toArray(new String[0]), "default")).expandWidgetX().expandCellX().expandX().widget();
+        if (!configs.isEmpty()) {
+            WDropdown<String> loadedConfigName = control.add(theme.dropdown(configs.toArray(new String[0]), "default")).expandWidgetX().expandCellX().expandX().widget();
             WButton load = control.add(theme.button("Load")).expandX().widget();
             load.action = () -> {
-                if (loadSearchingFromFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), lfname.get() + ".nbt"))) {
+                if (loadSearchingFromFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), loadedConfigName.get() + ".nbt"))) {
                     list.clear();
                     fillWidget(theme, list);
                     info("Loaded successfully");
@@ -505,72 +499,8 @@ public class VillagerRoller extends Module {
     }
 
     public static int getMinimumPrice(Enchantment e, int l) {
-//      TradeOffers.EnchantBookFactory.create()
-//      Lnet/minecraft/village/TradeOffers$EnchantBookFactory;create(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/random/Random;)Lnet/minecraft/village/TradeOffer;
         if (e == null) return 0;
         return e.isTreasure() ? (2 + 3 * l) * 2 : 2 + 3 * l;
-    }
-
-    public interface EnchantmentSelectCallback {
-        void selection(RollingEnchantment e);
-    }
-
-    public static class EnchantmentSelectScreen extends WindowScreen {
-        private final List<Enchantment> available = Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
-        private final GuiTheme theme;
-        private final EnchantmentSelectCallback callback;
-        private String filterText = "";
-
-        public EnchantmentSelectScreen(GuiTheme theme, EnchantmentSelectCallback callback) {
-            super(theme, "Select enchantment");
-            this.theme = theme;
-            this.callback = callback;
-        }
-
-        @Override
-        public void initWidgets() {
-            WTable table = theme.table();
-            table.minWidth = 400;
-
-            WTextBox filter = add(theme.textBox(filterText, "Search")).minWidth(400).expandX().widget();
-            filter.setFocused(true);
-            filter.setCursorMax();
-            filter.action = () -> {
-                filterText = filter.get().trim();
-                table.clear();
-                fillTable(table);
-            };
-
-            WHorizontalList customList = add(theme.horizontalList()).expandX().widget();
-            WTextBox cc = customList.add(theme.textBox("", "Custom")).expandX().expandWidgetX().widget();
-            WButton ca = customList.add(theme.button("Select")).widget();
-            ca.action = () -> {
-                String idtext = cc.get();
-                if (idtext.isEmpty()) return;
-                Identifier id = Identifier.tryParse(cc.get());
-                if (id == null) return;
-                callback.selection(new RollingEnchantment(id, 0, 0, true));
-                close();
-            };
-
-            add(table);
-            fillTable(table);
-        }
-
-        private void fillTable(WTable table) {
-            for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
-                if (!filterText.isEmpty() && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
-                    continue;
-                }
-                table.add(theme.label(Names.get(e))).expandCellX();
-                WButton a = table.add(theme.button("Select")).widget();
-                a.action = () -> {
-                    callback.selection(new RollingEnchantment(Registries.ENCHANTMENT.getId(e), e.getMaxLevel(), getMinimumPrice(e, e.getMaxLevel()), true));
-                    close();
-                };
-                table.row();
-            }
-        }
     }
 
     public void triggerInteract() {
@@ -582,40 +512,35 @@ public class VillagerRoller extends Module {
     }
 
     public List<Pair<Identifier, Integer>> getEnchants(ItemStack stack) {
-        List<Pair<Identifier, Integer>> ret = new ArrayList<>();
-        NbtList list = stack.getNbt().getList("StoredEnchantments", NbtElement.COMPOUND_TYPE);
-        list.addAll(stack.getNbt().getList("Enchantments", NbtElement.COMPOUND_TYPE));
-        for (int i = 0; i < list.size(); ++i) {
-            NbtCompound c = list.getCompound(i);
-            Identifier id = EnchantmentHelper.getIdFromNbt(c);
-            if (id == null) continue;
-            ret.add(new ObjectIntImmutablePair<>(id, EnchantmentHelper.getLevelFromNbt(c)));
-        }
+        List<Pair<Identifier, Integer>> ret;
+
+        ItemEnchantmentsComponent enchantmentsComponent = stack.get(DataComponentTypes.STORED_ENCHANTMENTS);
+        ret = enchantmentsComponent.getEnchantmentsMap().stream()
+            .map(entry -> ObjectIntImmutablePair.of(Registries.ENCHANTMENT.getId(entry.getKey().value()), entry.getIntValue()))
+            .collect(Collectors.toList());
+
         return ret;
     }
-
-    private TradeOfferList offersFromNetwork;
 
     @EventHandler
     private void onReceivePacket(PacketEvent.Receive event) {
         if (currentState != State.ROLLING_WAITING_FOR_VILLAGER_TRADES) return;
         if (!(event.packet instanceof SetTradeOffersS2CPacket p)) return;
-        MinecraftClient.getInstance().executeSync(() -> triggerTradeCheck(p.getOffers()));
+        mc.executeSync(() -> triggerTradeCheck(p.getOffers()));
     }
 
     public void triggerTradeCheck(TradeOfferList l) {
         for (TradeOffer offer : l) {
-            // info(String.format("Offer: %s", offer.getSellItem().toString()));
             ItemStack sellItem = offer.getSellItem();
-            if (!sellItem.isOf(Items.ENCHANTED_BOOK) || sellItem.getNbt() == null) break;
+            if (!sellItem.isOf(Items.ENCHANTED_BOOK) || sellItem.get(DataComponentTypes.STORED_ENCHANTMENTS) == null)
+                break;
 
             for (Pair<Identifier, Integer> enchant : getEnchants(sellItem)) {
                 int enchantLevel = enchant.right();
                 Identifier enchantId = enchant.left();
                 String enchantName = getEnchantmentName(enchantId);
                 String enchantIdString = enchantId.toString();
-                // level enchant.getValue()
-                // enchantment enchant.getKey()
+
                 boolean found = false;
                 for (RollingEnchantment e : searchingEnchants) {
                     if (!e.enabled || !e.enchantment.toString().equals(enchantIdString)) continue;
@@ -648,20 +573,17 @@ public class VillagerRoller extends Module {
                 if (!found) info(String.format("Found enchant %s but it is not in the list.", enchantName));
             }
         }
-        // ((MerchantScreenHandler)mc.player.currentScreenHandler).closeHandledScreen();
+
         mc.player.closeHandledScreen();
         currentState = State.ROLLING_BREAKING_BLOCK;
     }
 
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
-        if (currentState != State.WAITING_FOR_TARGET_VILLAGER) {
-            return;
-        }
-        if (!(event.entity instanceof VillagerEntity)) {
-            return;
-        }
-        rollingVillager = (VillagerEntity) event.entity;
+        if (currentState != State.WAITING_FOR_TARGET_VILLAGER) return;
+        if (!(event.entity instanceof VillagerEntity villager)) return;
+
+        rollingVillager = villager;
         currentState = State.ROLLING_BREAKING_BLOCK;
         info("We got your villager");
         event.cancel();
@@ -669,13 +591,12 @@ public class VillagerRoller extends Module {
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onStartBreakingBlockEvent(StartBreakingBlockEvent event) {
-        if (currentState == State.WAITING_FOR_TARGET_BLOCK) {
-            rollingBlockPos = event.blockPos;
-            rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
-            currentState = State.WAITING_FOR_TARGET_VILLAGER;
-            info("Rolling block selected, now interact with villager you want to roll");
-//            event.cancel(); //Dirty hack
-        }
+        if (currentState != State.WAITING_FOR_TARGET_BLOCK) return;
+
+        rollingBlockPos = event.blockPos;
+        rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
+        currentState = State.WAITING_FOR_TARGET_VILLAGER;
+        info("Rolling block selected, now interact with villager you want to roll");
     }
 
     private void placeFailed(String msg) {

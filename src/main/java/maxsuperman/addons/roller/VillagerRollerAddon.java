@@ -1,6 +1,7 @@
 package maxsuperman.addons.roller;
 
 import maxsuperman.addons.roller.modules.VillagerRoller;
+import meteordevelopment.meteorclient.addons.GithubRepo;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import org.apache.logging.log4j.LogManager;
@@ -25,5 +26,10 @@ public class VillagerRollerAddon extends MeteorAddon {
     @Override
     public String getPackage() {
         return "maxsuperman.addons.roller";
+    }
+
+    @Override
+    public GithubRepo getRepo() {
+        return new GithubRepo("maxsupermanhd", "meteor-villager-roller");
     }
 }
