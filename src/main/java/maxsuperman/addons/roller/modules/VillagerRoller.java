@@ -156,6 +156,15 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Integer> delayInteract = sgGeneral.add(new IntSetting.Builder()
+        .name("delay-interact")
+        .description("Time to wait after villager takes profession (ticks). Zero = no delay.")
+        .defaultValue(0)
+        .min(0)
+        .sliderRange(0, 20*4)
+        .build()
+    );
+
     private final Setting<Boolean> sortEnchantments = sgGeneral.add(new BoolSetting.Builder()
         .name("sort-enchantments")
         .description("Show enchantments sorted by their name")
@@ -182,6 +191,7 @@ public class VillagerRoller extends Module {
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
     private long currentProfessionWaitTime;
+    private long currentInteractWaitTime;
 
     public VillagerRoller() {
         super(Categories.Misc, "villager-roller", "Rolls trades.");
@@ -650,6 +660,14 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW -> {
+                if (delayInteract.get() != 0) {
+                    if (currentInteractWaitTime < delayInteract.get()) {
+                        currentInteractWaitTime++;
+                        return;
+                    } else {
+                        currentInteractWaitTime = 0;
+                    }
+                }
                 if (maxProfessionWaitTime.get() > 0 && (currentProfessionWaitTime + maxProfessionWaitTime.get() <= System.currentTimeMillis())) {
                     info("Villager did not take profession within the specified time");
                     currentState = State.ROLLING_BREAKING_BLOCK;
