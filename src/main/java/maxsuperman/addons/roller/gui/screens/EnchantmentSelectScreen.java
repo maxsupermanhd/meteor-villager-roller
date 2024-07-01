@@ -10,12 +10,16 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.utils.misc.Names;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.EnchantmentTags;
 import net.minecraft.util.Identifier;
 
 import java.util.List;
 
+import static meteordevelopment.meteorclient.MeteorClient.mc;
+
 public class EnchantmentSelectScreen extends WindowScreen {
-    private final List<Enchantment> available = Registries.ENCHANTMENT.stream().filter(Enchantment::isAvailableForEnchantedBookOffer).toList();
     private final GuiTheme theme;
     private final EnchantmentSelectCallback callback;
     private String filterText = "";
@@ -61,14 +65,24 @@ public class EnchantmentSelectScreen extends WindowScreen {
     }
 
     private void fillTable(WTable table) {
-        for (Enchantment e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
+        if (mc.world == null) {
+            return;
+        }
+        var reg = mc.world.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+        List<RegistryEntry<Enchantment>> available;
+        var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
+        if (l.isEmpty()) {
+            return;
+        }
+        available = l.get().stream().toList();
+        for (RegistryEntry<Enchantment> e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
             if (!filterText.isEmpty() && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
                 continue;
             }
             table.add(theme.label(Names.get(e))).expandCellX();
             WButton a = table.add(theme.button("Select")).widget();
             a.action = () -> {
-                callback.selection(new VillagerRoller.RollingEnchantment(Registries.ENCHANTMENT.getId(e), e.getMaxLevel(), VillagerRoller.getMinimumPrice(e, e.getMaxLevel()), true));
+                callback.selection(new VillagerRoller.RollingEnchantment(reg.getId(e.value()), e.value().getMaxLevel(), VillagerRoller.getMinimumPrice(e), true));
                 close();
             };
             table.row();
