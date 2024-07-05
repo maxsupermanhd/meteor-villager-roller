@@ -23,10 +23,15 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
+**Version and environment information:**
  - OS:
  - Villager roller version:
  - Meteor version:
+
+Used mods: (please provide full list)
+```
+<!-- List mods here -->
+```
 
 **Additional context**
 Add any other context about the problem here.
