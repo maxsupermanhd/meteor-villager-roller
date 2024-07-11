@@ -15,6 +15,7 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.EnchantmentTags;
 import net.minecraft.util.Identifier;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
@@ -23,11 +24,13 @@ public class EnchantmentSelectScreen extends WindowScreen {
     private final GuiTheme theme;
     private final EnchantmentSelectCallback callback;
     private String filterText = "";
+    private final boolean onlyTradable;
 
-    public EnchantmentSelectScreen(GuiTheme theme, EnchantmentSelectCallback callback) {
+    public EnchantmentSelectScreen(GuiTheme theme, boolean onlyTradable, EnchantmentSelectCallback callback) {
         super(theme, "Select enchantment");
         this.theme = theme;
         this.callback = callback;
+        this.onlyTradable = onlyTradable;
     }
 
     public interface EnchantmentSelectCallback {
@@ -69,12 +72,18 @@ public class EnchantmentSelectScreen extends WindowScreen {
             return;
         }
         var reg = mc.world.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
-        List<RegistryEntry<Enchantment>> available;
-        var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
-        if (l.isEmpty()) {
-            return;
+        List<RegistryEntry<Enchantment>> available = new ArrayList<>();
+        if (this.onlyTradable) {
+            var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
+            if (l.isEmpty()) {
+                return;
+            }
+            available = l.get().stream().toList();
+        } else {
+            for (var a : reg.getIndexedEntries()) {
+                available.add(a);
+            }
         }
-        available = l.get().stream().toList();
         for (RegistryEntry<Enchantment> e : available.stream().sorted((o1, o2) -> Names.get(o1).compareToIgnoreCase(Names.get(o2))).toList()) {
             if (!filterText.isEmpty() && !Names.get(e).toLowerCase().startsWith(filterText.toLowerCase())) {
                 continue;

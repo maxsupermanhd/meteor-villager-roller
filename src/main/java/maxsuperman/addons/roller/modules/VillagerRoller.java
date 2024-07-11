@@ -158,6 +158,13 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> onlyTradable = sgGeneral.add(new BoolSetting.Builder()
+        .name("only-tradable")
+        .description("Hide enchantments that are not marked as tradable")
+        .defaultValue(false)
+        .build()
+    );
+
     private final Setting<Boolean> sortEnchantments = sgGeneral.add(new BoolSetting.Builder()
         .name("sort-enchantments")
         .description("Show enchantments sorted by their name")
@@ -375,7 +382,7 @@ public class VillagerRoller extends Module {
 
             WHorizontalList label = theme.horizontalList();
             WButton c = label.add(theme.button("Change")).widget();
-            c.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, (RollingEnchantment sel) -> {
+            c.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, onlyTradable.get(), sel -> {
                 searchingEnchants.set(si, sel);
                 list.clear();
                 fillWidget(theme, list);
@@ -427,7 +434,7 @@ public class VillagerRoller extends Module {
         };
 
         WButton add = controls.add(theme.button("Add")).expandX().widget();
-        add.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, e -> {
+        add.action = () -> mc.setScreen(new EnchantmentSelectScreen(theme, onlyTradable.get(), e -> {
             e.minLevel = 1;
             e.maxCost = 64;
             e.enabled = true;
@@ -441,7 +448,7 @@ public class VillagerRoller extends Module {
             list.clear();
             searchingEnchants.clear();
             if (reg != null) {
-                for (RegistryEntry<Enchantment> e : getTradableEnchants()) {
+                for (RegistryEntry<Enchantment> e : getEnchants(onlyTradable.get())) {
                     searchingEnchants.add(new RollingEnchantment(reg.getId(e.value()), e.value().getMaxLevel(), getMinimumPrice(e), true));
                 }
             }
@@ -509,14 +516,21 @@ public class VillagerRoller extends Module {
 
     }
 
-    public List<RegistryEntry<Enchantment>> getTradableEnchants() {
+    public List<RegistryEntry<Enchantment>> getEnchants(boolean onlyTradable) {
         if (mc.world == null) {
             return Collections.emptyList();
         }
         var reg = mc.world.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
-        List<RegistryEntry<Enchantment>> available;
-        var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
-        return l.map(registryEntries -> registryEntries.stream().toList()).orElse(Collections.emptyList());
+        List<RegistryEntry<Enchantment>> available = new ArrayList<>();
+        if (onlyTradable) {
+            var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
+            return l.map(registryEntries -> registryEntries.stream().toList()).orElse(Collections.emptyList());
+        } else {
+            for (var a : reg.getIndexedEntries()) {
+                available.add(a);
+            }
+            return available;
+        }
     }
 
     public static int getMinimumPrice(RegistryEntry<Enchantment> e) {
