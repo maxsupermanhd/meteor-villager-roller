@@ -37,7 +37,9 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
@@ -50,7 +52,9 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
@@ -517,6 +521,14 @@ public class VillagerRoller extends Module {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
             info("Rolling paused, interact with villager to continue");
         } else {
+            Vec3d playerPos = mc.player.getEyePos();
+            Vec3d villagerPos = rollingVillager.getEyePos();
+            EntityHitResult entityHitResult = ProjectileUtil.raycast(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::canHit, playerPos.squaredDistanceTo(villagerPos));
+            if (entityHitResult == null) {
+                warning("Raycast didn't find villager entity?");
+                return;
+            }
+            mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
             mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
         }
     }
