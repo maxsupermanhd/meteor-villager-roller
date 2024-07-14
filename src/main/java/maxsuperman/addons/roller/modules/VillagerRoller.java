@@ -37,7 +37,9 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.EnchantmentLevelEntry;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.item.EnchantedBookItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -52,9 +54,12 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.EnchantmentTags;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
@@ -542,7 +547,18 @@ public class VillagerRoller extends Module {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
             info("Rolling paused, interact with villager to continue");
         } else {
-            mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+            Vec3d playerPos = mc.player.getEyePos();
+            Vec3d villagerPos = rollingVillager.getEyePos();
+            EntityHitResult entityHitResult = ProjectileUtil.raycast(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::canHit, playerPos.squaredDistanceTo(villagerPos));
+            if (entityHitResult == null) {
+                // Raycast didn't find villager entity?
+                mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+            } else {
+                ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
+                if (!actionResult.isAccepted()) {
+                    mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                }
+            }
         }
     }
 
