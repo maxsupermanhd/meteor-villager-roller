@@ -203,6 +203,10 @@ public class VillagerRoller extends Module {
 
     @Override
     public void onActivate() {
+        if (toggleOnBindRelease) {
+            toggleOnBindRelease = false;
+            warning("You had 'Toggle on bind release' set to true, I just saved you some troubleshooting by turning it off");
+        }
         currentState = State.WAITING_FOR_TARGET_BLOCK;
         info("Attack block you want to roll");
     }
