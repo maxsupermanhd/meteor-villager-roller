@@ -413,7 +413,7 @@ public class VillagerRoller extends Module {
             cost.tooltip = "Maximum cost in emeralds, 0 means no limit";
 
             WButton setOptimal = costbox.add(theme.button("O")).widget();
-            setOptimal.tooltip = "Set to optimal price (5 + maxLevel*3) (double if treasure) (if known)";
+            setOptimal.tooltip = "Set to optimal price (2 + maxLevel*3) (double if treasure) (if known)";
             setOptimal.action = () -> {
                 list.clear();
                 en.ifPresent(enchantmentReference -> e.maxCost = getMinimumPrice(enchantmentReference));
