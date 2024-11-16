@@ -77,6 +77,7 @@ import static meteordevelopment.meteorclient.MeteorClient.mc;
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgSound = settings.createGroup("Sound");
+    private final SettingGroup sgChatFeddback = settings.createGroup("Chat feedback", false);
 
     private final Setting<Boolean> disableIfFound = sgGeneral.add(new BoolSetting.Builder()
         .name("disable-when-found")
@@ -177,6 +178,64 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> cfSetup = sgGeneral.add(new BoolSetting.Builder()
+        .name("setup")
+        .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfPausedOnScreen = sgGeneral.add(new BoolSetting.Builder()
+        .name("paused-on-screen")
+        .description("Rolling paused, interact with villager to continue")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfLowerLevel = sgGeneral.add(new BoolSetting.Builder()
+        .name("found-lower-level")
+        .description("Found enchant %s but it is not max level: %d (max) > %d (found)")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfTooExpensive = sgGeneral.add(new BoolSetting.Builder()
+        .name("found-too-expensive")
+        .description("Found enchant %s but it costs too much: %s (max price) < %d (cost)")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfIgnored = sgGeneral.add(new BoolSetting.Builder()
+        .name("found-not-on-the-list")
+        .description("Found enchant %s but it is not in the list.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfProfessionTimeout = sgGeneral.add(new BoolSetting.Builder()
+        .name("profession-timeout")
+        .description("Villager did not take profession within the specified time")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfPlaceFailed = sgGeneral.add(new BoolSetting.Builder()
+        .name("place-failed")
+        .description("Failed placing, can't place or can't get lectern to hotbar (they still trigger place-failed settings)")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfDiscrepancy = sgGeneral.add(new BoolSetting.Builder()
+        .name("discrepancy")
+        .description("Somehow roller got into state it was not expecting (likely AC mess)")
+        .defaultValue(true)
+        .build()
+    );
+
+
+
     private enum State {
         DISABLED,
         WAITING_FOR_TARGET_BLOCK,
@@ -205,16 +264,19 @@ public class VillagerRoller extends Module {
     public void onActivate() {
         if (toggleOnBindRelease) {
             toggleOnBindRelease = false;
-            warning("You had 'Toggle on bind release' set to true, I just saved you some troubleshooting by turning it off");
+            if (cfSetup.get()) {
+                warning("You had 'Toggle on bind release' set to true, I just saved you some troubleshooting by turning it off");
+            }
         }
         currentState = State.WAITING_FOR_TARGET_BLOCK;
-        info("Attack block you want to roll");
+        if (cfSetup.get()) {
+            info("Attack block you want to roll");
+        }
     }
 
     @Override
     public void onDeactivate() {
         currentState = State.DISABLED;
-        info("Roller disabled.");
     }
 
     @Override
@@ -254,7 +316,7 @@ public class VillagerRoller extends Module {
 
     private boolean loadSearchingFromFile(File f) {
         if (!f.exists() || !f.canRead()) {
-            info("File does not exist or can not be loaded");
+            error("File does not exist or can not be loaded");
             return false;
         }
         NbtCompound r = null;
@@ -264,14 +326,14 @@ public class VillagerRoller extends Module {
             e.printStackTrace();
         }
         if (r == null) {
-            info("Failed to load nbt from file");
+            error("Failed to load nbt from file");
             return false;
         }
         NbtList l = r.getList("rolling", NbtElement.COMPOUND_TYPE);
         searchingEnchants.clear();
         for (NbtElement e : l) {
             if (e.getType() != NbtElement.COMPOUND_TYPE) {
-                info("Invalid list element");
+                error("Invalid list element");
                 return false;
             }
             searchingEnchants.add(new RollingEnchantment().fromTag((NbtCompound) e));
@@ -287,7 +349,7 @@ public class VillagerRoller extends Module {
         NbtCompound c = new NbtCompound();
         c.put("rolling", l);
         if (Files.notExists(f.getParentFile().toPath()) && !f.getParentFile().mkdirs()) {
-            info("Failed to make directories");
+            error("Failed to make directories");
             return false;
         }
         try {
@@ -317,7 +379,7 @@ public class VillagerRoller extends Module {
             if (saveSearchingToFile(new File(new File(MeteorClient.FOLDER, "VillagerRoller"), savedConfigName.get() + ".nbt"))) {
                 info("Saved successfully");
             } else {
-                info("Save failed");
+                error("Save failed");
             }
             list.clear();
             fillWidget(theme, list);
@@ -549,7 +611,9 @@ public class VillagerRoller extends Module {
 
     public void triggerInteract() {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
-            info("Rolling paused, interact with villager to continue");
+            if (cfPausedOnScreen.get()) {
+                info("Rolling paused, interact with villager to continue");
+            }
         } else {
             Vec3d playerPos = mc.player.getEyePos();
             Vec3d villagerPos = rollingVillager.getEyePos();
@@ -600,18 +664,24 @@ public class VillagerRoller extends Module {
                     if (e.minLevel <= 0) {
                         int ml = enchant.key().value().getMaxLevel();
                         if (enchantLevel < ml) {
-                            info(String.format("Found enchant %s but it is not max level: %d (max) > %d (found)",
-                                enchantName, ml, enchantLevel));
+                            if (cfLowerLevel.get()) {
+                                info(String.format("Found enchant %s but it is not max level: %d (max) > %d (found)",
+                                    enchantName, ml, enchantLevel));
+                            }
                             continue;
                         }
                     } else if (e.minLevel > enchantLevel) {
-                        info(String.format("Found enchant %s but it has too low level: %d (requested level) > %d (rolled level)",
-                            enchantName, e.minLevel, enchantLevel));
+                        if (cfLowerLevel.get()) {
+                            info(String.format("Found enchant %s but it has too low level: %d (requested level) > %d (rolled level)",
+                                enchantName, e.minLevel, enchantLevel));
+                        }
                         continue;
                     }
                     if (e.maxCost > 0 && offer.getOriginalFirstBuyItem().getCount() > e.maxCost) {
-                        info(String.format("Found enchant %s but it costs too much: %s (max price) < %d (cost)",
-                            enchantName, e.maxCost, offer.getOriginalFirstBuyItem().getCount()));
+                        if (cfTooExpensive.get()) {
+                            info(String.format("Found enchant %s but it costs too much: %s (max price) < %d (cost)",
+                                enchantName, e.maxCost, offer.getOriginalFirstBuyItem().getCount()));
+                        }
                         continue;
                     }
                     if (disableIfFound.get()) e.enabled = false;
@@ -622,7 +692,9 @@ public class VillagerRoller extends Module {
                     }
                     break;
                 }
-                if (!found) info(String.format("Found enchant %s but it is not in the list.", enchantName));
+                if (!found && cfIgnored.get()) {
+                    info(String.format("Found enchant %s but it is not in the list.", enchantName));
+                }
             }
         }
 
@@ -637,7 +709,9 @@ public class VillagerRoller extends Module {
 
         rollingVillager = villager;
         currentState = State.ROLLING_BREAKING_BLOCK;
-        info("We got your villager");
+        if (cfSetup.get()) {
+            info("We got your villager");
+        }
         event.cancel();
     }
 
@@ -648,12 +722,16 @@ public class VillagerRoller extends Module {
         rollingBlockPos = event.blockPos;
         rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
         currentState = State.WAITING_FOR_TARGET_VILLAGER;
-        info("Rolling block selected, now interact with villager you want to roll");
+        if (cfSetup.get()) {
+            info("Rolling block selected, now interact with villager you want to roll");
+        }
     }
 
     private void placeFailed(String msg) {
         if (failedToPlacePrevMsg + failedToPlaceDelay.get() <= System.currentTimeMillis()) {
-            info(msg);
+            if (cfPlaceFailed.get()) {
+                info(msg);
+            }
             failedToPlacePrevMsg = System.currentTimeMillis();
         }
         if (failedToPlaceDisable.get()) toggle();
@@ -667,13 +745,15 @@ public class VillagerRoller extends Module {
                     // info("Block is broken, waiting for villager to clean profession...");
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                 } else if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
-                    info("Can not break block");
+                    error("Can not break specified block");
                     toggle();
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR -> {
                 if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
-                    info("Rolling block mining reverted?");
+                    if (cfDiscrepancy.get()) {
+                        info("Rolling block mining reverted?");
+                    }
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
@@ -703,17 +783,23 @@ public class VillagerRoller extends Module {
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW -> {
                 if (maxProfessionWaitTime.get() > 0 && (currentProfessionWaitTime + maxProfessionWaitTime.get() <= System.currentTimeMillis())) {
-                    info("Villager did not take profession within the specified time");
+                    if (cfProfessionTimeout.get()) {
+                        info("Villager did not take profession within the specified time");
+                    }
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
-                    info("Lectern placement reverted by server (AC?)");
+                    if (cfDiscrepancy.get()) {
+                        info("Lectern placement reverted by server (AC?)");
+                    }
                     currentState = State.ROLLING_PLACING_BLOCK;
                     return;
                 }
                 if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
-                    info("Placed wrong block?!");
+                    if (cfDiscrepancy.get()) {
+                        info("Placed wrong block?!");
+                    }
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
