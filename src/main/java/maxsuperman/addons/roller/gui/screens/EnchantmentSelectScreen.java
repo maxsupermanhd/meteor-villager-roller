@@ -71,14 +71,11 @@ public class EnchantmentSelectScreen extends WindowScreen {
         if (mc.world == null) {
             return;
         }
-        var reg = mc.world.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+        var reg = mc.world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
         List<RegistryEntry<Enchantment>> available = new ArrayList<>();
         if (this.onlyTradable) {
-            var l = reg.getEntryList(EnchantmentTags.TRADEABLE);
-            if (l.isEmpty()) {
-                return;
-            }
-            available = l.get().stream().toList();
+            var l = reg.iterateEntries(EnchantmentTags.TRADEABLE);
+            l.forEach(available::add);
         } else {
             for (var a : reg.getIndexedEntries()) {
                 available.add(a);
