@@ -12,7 +12,8 @@ We have a [Discord server](https://discord.com/invite/DFsMKWJJPN).
 
 | Minecraft | Meteor           | Supported | Download                                                                                                                                      |
 |-----------|------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| 1.21.3    | 0.5.9-dev >2202  | Yes       | [1.4.9](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.9/villager-roller-1.4.9+mc1.21.3-rev.0cb2d37.jar)       |
+| 1.21.4    | 0.6.0-dev >2228  | Yes       | [1.4.10](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.10/villager-roller-1.4.10+mc1.21.4-rev.0f259ee.jar)    |
+| 1.21.3    | 0.5.9-dev >2202  | No        | [1.4.9](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.9/villager-roller-1.4.9+mc1.21.3-rev.0cb2d37.jar)       |
 | 1.21.1    | 0.5.8-dev >2147  | No        | [1.4.8](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.8/villager-roller-1.4.8+mc1.21.1-rev.5a91a53.jar)       |
 | 1.20.6    | 0.5.7-dev >2072  | No        | [1.4.5](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.7/villager-roller-1.4.5+mc1.20.6-rev.e9d12e8-dirty.jar) |
 | 1.20.4    | 0.5.6-dev >1983  | No        | [1.4.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.4/villager-roller-1.4.4+mc1.20.4-rev.aec87b6.jar)       |
