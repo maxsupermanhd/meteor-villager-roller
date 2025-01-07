@@ -42,11 +42,11 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.item.KnowledgeBookItem;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
@@ -54,6 +54,8 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.EnchantmentTags;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -83,6 +85,13 @@ public class VillagerRoller extends Module {
         .name("disable-when-found")
         .description("Disable enchantment from list if found")
         .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> disconnectIfFound = sgGeneral.add(new BoolSetting.Builder()
+        .name("disconnect-when-found")
+        .description("Disconnect from server when enchantment from list if found")
+        .defaultValue(false)
         .build()
     );
 
@@ -693,6 +702,10 @@ public class VillagerRoller extends Module {
                     if (enablePlaySound.get() && !sound.get().isEmpty()) {
                         mc.getSoundManager().play(PositionedSoundInstance.master(sound.get().get(0),
                             soundPitch.get().floatValue(), soundVolume.get().floatValue()));
+                    }
+                    if (disconnectIfFound.get()) {
+                        MutableText text = Text.literal(String.format("[VillagerRoller] Found enchant %s for %d emeralds and automatically disconnected.", enchantName, offer.getOriginalFirstBuyItem().getCount()));
+                        mc.player.networkHandler.onDisconnect(new DisconnectS2CPacket(text));
                     }
                     break;
                 }
