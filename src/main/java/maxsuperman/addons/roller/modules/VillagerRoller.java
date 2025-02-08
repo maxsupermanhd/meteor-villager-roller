@@ -878,7 +878,7 @@ public class VillagerRoller extends Module {
                     IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
                     BetterBlockPos lecternPosition = new BetterBlockPos(x, y, z);
                     BlockOptionalMeta type = new BlockOptionalMeta(Blocks.LECTERN);
-                    ISchematic schematic = new FillSchematic(1, 1, 1, type); // TODO - import these, not with create?
+                    ISchematic schematic = new FillSchematic(1, 1, 1, type);
                     baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
                     
                     prevBaritoneBlockPlace = System.currentTimeMillis();
