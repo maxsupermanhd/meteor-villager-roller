@@ -66,6 +66,7 @@ import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
 import org.apache.commons.io.FilenameUtils;
+import baritone.api.BaritoneAPI;
 
 import java.io.File;
 import java.io.IOException;
@@ -148,6 +149,28 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> baritonePlacing = sgGeneral.add(new BoolSetting.Builder()
+        .name("baritone-place")
+        .description("Use baritone for placing lectern\nNot compatible with rotateplace\nWill also clear #sel selections\nUse if block placement is reverted by server")
+        .defaultValue(false)
+        .build());
+
+    private final Setting<Integer> baritoneBlockPlaceTimeout = sgGeneral.add(new IntSetting.Builder()
+        .name("baritone-place-timeout")
+        .description("Delay after failed baritone block place (milliseconds)")
+        .defaultValue(1500)
+        .min(0)
+        .sliderRange(0, 10000)
+        .build()
+    );
+    
+    private final Setting<Boolean> lookAtVillagerInterract = sgGeneral.add(new BoolSetting.Builder()
+        .name("look-at-villager")
+        .description("Look at the villager before interacting with it (required on some servers)")
+        .defaultValue(true)
+        .build()
+    );
+
     private final Setting<Integer> failedToPlaceDelay = sgGeneral.add(new IntSetting.Builder()
         .name("place-fail-delay")
         .description("Delay after failed block place (milliseconds)")
@@ -170,6 +193,22 @@ public class VillagerRoller extends Module {
         .defaultValue(0)
         .min(0)
         .sliderRange(0, 10000)
+        .build()
+    );
+
+    private final Setting<Integer> maxInterractWaitTime = sgGeneral.add(new IntSetting.Builder()
+        .name("max-interract-wait-time")
+        .description("Delay after failed villager interract (milliseconds)")
+        .defaultValue(500)
+        .min(0)
+        .sliderRange(0, 10000)
+        .build()
+    );
+
+    private final Setting<Boolean> cfInterractTimeout = sgGeneral.add(new BoolSetting.Builder()
+        .name("interract-timeout")
+        .description("Villager interract packet timeout")
+        .defaultValue(true)
         .build()
     );
 
@@ -252,6 +291,7 @@ public class VillagerRoller extends Module {
         ROLLING_BREAKING_BLOCK,
         ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR,
         ROLLING_PLACING_BLOCK,
+        ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE,
         ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW,
         ROLLING_WAITING_FOR_VILLAGER_TRADES
     }
@@ -263,6 +303,8 @@ public class VillagerRoller extends Module {
     private Block rollingBlock;
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
+    private long prevVillagerInterractTime = System.currentTimeMillis();
+    private long prevBaritoneBlockPlace = System.currentTimeMillis();
     private long currentProfessionWaitTime;
 
     public VillagerRoller() {
@@ -633,13 +675,28 @@ public class VillagerRoller extends Module {
             EntityHitResult entityHitResult = ProjectileUtil.raycast(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::canHit, playerPos.squaredDistanceTo(villagerPos));
             if (entityHitResult == null) {
                 // Raycast didn't find villager entity?
-                mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                ActionResult actionResultDirect = mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                if (!actionResultDirect.isAccepted()) {
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                }
             } else {
+                if (lookAtVillagerInterract.get()) {
+                    Vec3d direction = villagerPos.subtract(playerPos).normalize();
+                    double yaw = Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90;
+                    double pitch = Math.toDegrees(-Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
+                    mc.player.setYaw((float) yaw);
+                    mc.player.setPitch((float) pitch);
+                }
+
                 ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
                 if (!actionResult.isAccepted()) {
-                    mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                    ActionResult actionResultDirect = mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                    if (!actionResultDirect.isAccepted()) {
+                        currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                    }
                 }
             }
+            prevVillagerInterractTime = System.currentTimeMillis();
         }
     }
 
@@ -780,19 +837,61 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_PLACING_BLOCK -> {
+                // Check if failedToPlaceDelay has passed
+                if (failedToPlacePrevMsg + failedToPlaceDelay.get() > System.currentTimeMillis()) {
+                    return;
+                }
+
                 FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
                 if (!item.found()) {
                     placeFailed("Lectern not found in hotbar");
                     return;
                 }
-                if (!BlockUtils.canPlace(rollingBlockPos, true)) {
-                    placeFailed("Can't place lectern");
+                if (baritonePlacing.get()) {
+                    int x = rollingBlockPos.getX();
+                    int y = rollingBlockPos.getY();
+                    int z = rollingBlockPos.getZ();
+                    // Use Baritone to place the lectern block
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 1 "+x+" "+y+" "+z);
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 2 "+x+" "+y+" "+z);
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                    prevBaritoneBlockPlace = System.currentTimeMillis();
+                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
+                    return;
+                } else {
+                    if (!BlockUtils.canPlace(rollingBlockPos, true)) {
+                        placeFailed("Can't place lectern");
+                        return;
+                    }
+                    if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
+                        placeFailed("Failed to place lectern");
+                        return;
+                    }
+                }
+
+                currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                if (maxProfessionWaitTime.get() > 0) {
+                    currentProfessionWaitTime = System.currentTimeMillis();
+                }
+            }
+            case ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE -> {
+                if (baritoneBlockPlaceTimeout.get() + prevBaritoneBlockPlace <= System.currentTimeMillis()) {
+                    if (cfPlaceFailed.get()) {
+                        info("Baritone failed to place lectern");
+                    }
+                    currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
-                if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                    placeFailed("Failed to place lectern");
+
+                if (BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing()) {
                     return;
                 }
+                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                    return;
+                }
+
                 currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 if (maxProfessionWaitTime.get() > 0) {
                     currentProfessionWaitTime = System.currentTimeMillis();
@@ -821,8 +920,17 @@ public class VillagerRoller extends Module {
                     return;
                 }
                 if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
-                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;                    
                     triggerInteract();
+                }
+            }
+            case ROLLING_WAITING_FOR_VILLAGER_TRADES -> {
+                if (prevVillagerInterractTime + maxInterractWaitTime.get() <= System.currentTimeMillis()) {
+                    if (cfInterractTimeout.get()) {
+                        info("Villager interract packet timeout");
+                    }
+                    // We want to retry interract
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 }
             }
             default -> {
