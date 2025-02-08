@@ -66,7 +66,14 @@ import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
 import org.apache.commons.io.FilenameUtils;
+
 import baritone.api.BaritoneAPI;
+import baritone.api.IBaritone;
+import baritone.api.selection.ISelectionManager;
+import baritone.api.utils.BetterBlockPos;
+import baritone.api.utils.BlockOptionalMeta;
+import baritone.api.schematic.ISchematic;
+import baritone.api.schematic.FillSchematic;
 
 import java.io.File;
 import java.io.IOException;
@@ -868,11 +875,27 @@ public class VillagerRoller extends Module {
                     int z = rollingBlockPos.getZ();
 
                     // Use Baritone to place the lectern block
+                    IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
+                    BetterBlockPos lecternPosition = new BetterBlockPos(x, y, z);
+                    BlockOptionalMeta type = new BlockOptionalMeta(Blocks.LECTERN);
+                    ISchematic schematic = new FillSchematic(1, 1, 1, type); // TODO - import these, not with create?
+                    baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
+
+                    /*
+                    ISelectionManager baritoneSelectionManager = baritone.getSelectionManager();
+                    baritoneSelectionManager.removeAllSelections();
+                    baritoneSelectionManager.addSelection(lecternPosition, lecternPosition);
+                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
+                    baritoneSelectionManager.removeAllSelections();
+                    */
+
+                    /*
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 1 "+x+" "+y+" "+z);
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 2 "+x+" "+y+" "+z);
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                    */
                     
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
