@@ -164,7 +164,7 @@ public class VillagerRoller extends Module {
         .build()
     );
     
-    private final Setting<Boolean> lookAtVillagerInterract = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> lookAtVillagerInteract = sgGeneral.add(new BoolSetting.Builder()
         .name("look-at-villager")
         .description("Look at the villager before interacting with it (required on some servers)")
         .defaultValue(false)
@@ -196,9 +196,9 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Integer> maxInterractWaitTime = sgGeneral.add(new IntSetting.Builder()
-        .name("max-interract-wait-time")
-        .description("Delay after failed villager interract (milliseconds)")
+    private final Setting<Integer> maxInteractWaitTime = sgGeneral.add(new IntSetting.Builder()
+        .name("max-interact-wait-time")
+        .description("Delay after failed villager interact (milliseconds)")
         .defaultValue(500)
         .min(0)
         .sliderRange(0, 10000)
@@ -226,9 +226,9 @@ public class VillagerRoller extends Module {
         .build()
     );
     
-    private final Setting<Boolean> cfInterractTimeout = sgGeneral.add(new BoolSetting.Builder()
-        .name("interract-timeout")
-        .description("Villager interract packet timeout")
+    private final Setting<Boolean> cfInteractTimeout = sgGeneral.add(new BoolSetting.Builder()
+        .name("interact-timeout")
+        .description("Villager interact packet timeout")
         .defaultValue(true)
         .build()
     );
@@ -303,7 +303,7 @@ public class VillagerRoller extends Module {
     private Block rollingBlock;
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
-    private long prevVillagerInterractTime = System.currentTimeMillis();
+    private long prevVillagerInteractTime = System.currentTimeMillis();
     private long prevBaritoneBlockPlace = System.currentTimeMillis();
     private long currentProfessionWaitTime;
 
@@ -689,7 +689,7 @@ public class VillagerRoller extends Module {
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 }
             } else {
-                if (lookAtVillagerInterract.get()) {
+                if (lookAtVillagerInteract.get()) {
                     Vec3d direction = villagerPos.subtract(playerPos).normalize();
                     double yaw = Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90;
                     double pitch = Math.toDegrees(-Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
@@ -705,7 +705,7 @@ public class VillagerRoller extends Module {
                     }
                 }
             }
-            prevVillagerInterractTime = System.currentTimeMillis();
+            prevVillagerInteractTime = System.currentTimeMillis();
         }
     }
 
@@ -866,12 +866,14 @@ public class VillagerRoller extends Module {
                     int x = rollingBlockPos.getX();
                     int y = rollingBlockPos.getY();
                     int z = rollingBlockPos.getZ();
+
                     // Use Baritone to place the lectern block
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 1 "+x+" "+y+" "+z);
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 2 "+x+" "+y+" "+z);
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
+                    
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
                     return;
@@ -937,11 +939,11 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_TRADES -> {
-                if (prevVillagerInterractTime + maxInterractWaitTime.get() <= System.currentTimeMillis()) {
-                    if (cfInterractTimeout.get()) {
-                        info("Villager interract packet timeout");
+                if (prevVillagerInteractTime + maxInteractWaitTime.get() <= System.currentTimeMillis()) {
+                    if (cfInteractTimeout.get()) {
+                        info("Villager interact packet timeout");
                     }
-                    // We want to retry interract
+                    // We want to retry interact
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 }
             }
