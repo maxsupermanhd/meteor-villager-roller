@@ -167,7 +167,7 @@ public class VillagerRoller extends Module {
     private final Setting<Boolean> lookAtVillagerInterract = sgGeneral.add(new BoolSetting.Builder()
         .name("look-at-villager")
         .description("Look at the villager before interacting with it (required on some servers)")
-        .defaultValue(true)
+        .defaultValue(false)
         .build()
     );
 
@@ -205,13 +205,6 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> cfInterractTimeout = sgGeneral.add(new BoolSetting.Builder()
-        .name("interract-timeout")
-        .description("Villager interract packet timeout")
-        .defaultValue(true)
-        .build()
-    );
-
     private final Setting<Boolean> onlyTradable = sgGeneral.add(new BoolSetting.Builder()
         .name("only-tradable")
         .description("Hide enchantments that are not marked as tradable")
@@ -229,6 +222,13 @@ public class VillagerRoller extends Module {
     private final Setting<Boolean> cfSetup = sgGeneral.add(new BoolSetting.Builder()
         .name("setup")
         .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
+        .defaultValue(true)
+        .build()
+    );
+    
+    private final Setting<Boolean> cfInterractTimeout = sgGeneral.add(new BoolSetting.Builder()
+        .name("interract-timeout")
+        .description("Villager interract packet timeout")
         .defaultValue(true)
         .build()
     );
