@@ -880,22 +880,6 @@ public class VillagerRoller extends Module {
                     BlockOptionalMeta type = new BlockOptionalMeta(Blocks.LECTERN);
                     ISchematic schematic = new FillSchematic(1, 1, 1, type); // TODO - import these, not with create?
                     baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
-
-                    /*
-                    ISelectionManager baritoneSelectionManager = baritone.getSelectionManager();
-                    baritoneSelectionManager.removeAllSelections();
-                    baritoneSelectionManager.addSelection(lecternPosition, lecternPosition);
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
-                    baritoneSelectionManager.removeAllSelections();
-                    */
-
-                    /*
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 1 "+x+" "+y+" "+z);
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel 2 "+x+" "+y+" "+z);
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel f minecraft:lectern");
-                    BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("sel clear");
-                    */
                     
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
