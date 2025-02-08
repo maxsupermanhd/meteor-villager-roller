@@ -365,6 +365,15 @@ public class VillagerRoller extends Module {
         return this;
     }
 
+    private boolean isBaritoneInstalled() {
+        try {
+            Class.forName("baritone.api.BaritoneAPI");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
     private boolean loadSearchingFromFile(File f) {
         if (!f.exists() || !f.canRead()) {
             error("File does not exist or can not be loaded");
@@ -848,6 +857,12 @@ public class VillagerRoller extends Module {
                     return;
                 }
                 if (baritonePlacing.get()) {
+                    if (!isBaritoneInstalled()) {
+                        warning("No Baritone instance is detected, can't use baritone for placing. Disabling baritone placing.");
+                        baritonePlacing.set(false);
+                        return;
+                    }
+
                     int x = rollingBlockPos.getX();
                     int y = rollingBlockPos.getY();
                     int z = rollingBlockPos.getZ();
@@ -885,9 +900,6 @@ public class VillagerRoller extends Module {
                     return;
                 }
 
-                if (BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing()) {
-                    return;
-                }
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                     return;
                 }
