@@ -157,15 +157,15 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> baritonePlacing = sgGeneral.add(new BoolSetting.Builder()
-        .name("baritone-place")
-        .description("Use baritone for placing lectern\nNot compatible with rotateplace\nWill also clear #sel selections\nUse if block placement is reverted by server")
+    private final Setting<Boolean> useBaritone = sgGeneral.add(new BoolSetting.Builder()
+        .name("use-baritone")
+        .description("Utilize Baritone for breaking and placing the lectern. Enable this if normal block breaking or placement is being reverted by the server's anticheat.")
         .defaultValue(false)
         .build());
 
-    private final Setting<Integer> baritoneBlockPlaceTimeout = sgGeneral.add(new IntSetting.Builder()
-        .name("baritone-place-timeout")
-        .description("Delay after failed baritone block place (milliseconds)")
+    private final Setting<Integer> baritoneBlockActionTimeout = sgGeneral.add(new IntSetting.Builder()
+        .name("baritone-action-timeout")
+        .description("Delay after failed baritone block place/break (milliseconds)")
         .defaultValue(1500)
         .min(0)
         .sliderRange(0, 10000)
@@ -297,6 +297,7 @@ public class VillagerRoller extends Module {
         WAITING_FOR_TARGET_BLOCK,
         WAITING_FOR_TARGET_VILLAGER,
         ROLLING_BREAKING_BLOCK,
+        ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK,
         ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR,
         ROLLING_PLACING_BLOCK,
         ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE,
@@ -312,6 +313,7 @@ public class VillagerRoller extends Module {
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
     private long prevVillagerInteractTime = System.currentTimeMillis();
+    private long prevBaritoneBlockBreak = System.currentTimeMillis();
     private long prevBaritoneBlockPlace = System.currentTimeMillis();
     private long currentProfessionWaitTime;
 
@@ -379,7 +381,7 @@ public class VillagerRoller extends Module {
             return true;
         } catch (ClassNotFoundException e) {
             warning("No Baritone instance is detected, can't use baritone for placing. Disabling baritone placing.");
-            baritonePlacing.set(false);
+            useBaritone.set(false);
             return false;
         }
     }
@@ -693,7 +695,7 @@ public class VillagerRoller extends Module {
         pitch += (Math.random() - 0.5) * 2;
 
         // If BaritonePlace is enabled, we can ask Baritone to look at the villager
-        if (baritonePlacing.get() && isBaritoneInstalled()) {
+        if (useBaritone.get() && isBaritoneInstalled()) {
             IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
 
             // Cancel all pathing behaviors before looking at the villager
@@ -819,6 +821,21 @@ public class VillagerRoller extends Module {
         currentState = State.ROLLING_BREAKING_BLOCK;
     }
 
+    private void placeBlockBaritone(BlockPos blockPosition, Block blockType) {
+        IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
+
+        // Ensure all previous actions are canceled before placing the block
+        IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
+        pathingBehavior.cancelEverything();
+        pathingBehavior.forceCancel();
+
+        // Use Baritone to place the block
+        BetterBlockPos lecternPosition = new BetterBlockPos(blockPosition);
+        BlockOptionalMeta type = new BlockOptionalMeta(blockType);
+        ISchematic schematic = new FillSchematic(1, 1, 1, type);
+        baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
+    }
+
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (currentState != State.WAITING_FOR_TARGET_VILLAGER) return;
@@ -861,9 +878,34 @@ public class VillagerRoller extends Module {
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                     // info("Block is broken, waiting for villager to clean profession...");
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
-                } else if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
+                    return;
+                }
+
+                if (useBaritone.get() && isBaritoneInstalled()) {
+                    placeBlockBaritone(rollingBlockPos, Blocks.AIR);
+
+                    prevBaritoneBlockBreak = System.currentTimeMillis();
+                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK;
+
+                    return;
+                }
+
+                if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
                     error("Can not break specified block");
                     toggle();
+                }
+            }
+            case ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK -> {
+                if (baritoneBlockActionTimeout.get() + prevBaritoneBlockBreak <= System.currentTimeMillis()) {
+                    if (cfPlaceFailed.get()) {
+                        info("Baritone failed to break block");
+                    }
+                    currentState = State.ROLLING_BREAKING_BLOCK;
+                    return;
+                }
+
+                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR -> {
@@ -890,23 +932,8 @@ public class VillagerRoller extends Module {
                     placeFailed("Lectern not found in hotbar");
                     return;
                 }
-                if (baritonePlacing.get() && isBaritoneInstalled()) {
-                    int x = rollingBlockPos.getX();
-                    int y = rollingBlockPos.getY();
-                    int z = rollingBlockPos.getZ();
-
-                    IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
-
-                    // Ensure all previous actions are canceled before placing the block
-                    IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
-                    pathingBehavior.cancelEverything();
-                    pathingBehavior.forceCancel();
-
-                    // Use Baritone to place the lectern block
-                    BetterBlockPos lecternPosition = new BetterBlockPos(x, y, z);
-                    BlockOptionalMeta type = new BlockOptionalMeta(Blocks.LECTERN);
-                    ISchematic schematic = new FillSchematic(1, 1, 1, type);
-                    baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
+                if (useBaritone.get() && isBaritoneInstalled()) {
+                    placeBlockBaritone(rollingBlockPos, Blocks.LECTERN);
 
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
@@ -928,7 +955,7 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE -> {
-                if (baritoneBlockPlaceTimeout.get() + prevBaritoneBlockPlace <= System.currentTimeMillis()) {
+                if (baritoneBlockActionTimeout.get() + prevBaritoneBlockPlace <= System.currentTimeMillis()) {
                     if (cfPlaceFailed.get()) {
                         info("Baritone failed to place lectern");
                     }
