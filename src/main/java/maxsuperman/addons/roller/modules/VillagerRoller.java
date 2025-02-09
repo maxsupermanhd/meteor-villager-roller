@@ -69,11 +69,12 @@ import org.apache.commons.io.FilenameUtils;
 
 import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
-import baritone.api.selection.ISelectionManager;
+import baritone.api.behavior.IPathingBehavior;
 import baritone.api.utils.BetterBlockPos;
 import baritone.api.utils.BlockOptionalMeta;
 import baritone.api.schematic.ISchematic;
 import baritone.api.schematic.FillSchematic;
+import baritone.api.utils.Rotation;
 
 import java.io.File;
 import java.io.IOException;
@@ -377,6 +378,8 @@ public class VillagerRoller extends Module {
             Class.forName("baritone.api.BaritoneAPI");
             return true;
         } catch (ClassNotFoundException e) {
+            warning("No Baritone instance is detected, can't use baritone for placing. Disabling baritone placing.");
+            baritonePlacing.set(false);
             return false;
         }
     }
@@ -680,6 +683,34 @@ public class VillagerRoller extends Module {
         return e.isIn(EnchantmentTags.DOUBLE_TRADE_PRICE) ? (2 + 3 * e.value().getMaxLevel()) * 2 : 2 + 3 * e.value().getMaxLevel();
     }
 
+    public void lookAtVillager(Vec3d playerPos, Vec3d villagerPos) {
+        Vec3d direction = villagerPos.subtract(playerPos).normalize();
+        double yaw = Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90;
+        double pitch = Math.toDegrees(-Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
+
+        // Add some random noise to prevent anticheat detection
+        yaw += (Math.random() - 0.5) * 2;
+        pitch += (Math.random() - 0.5) * 2;
+
+        // If BaritonePlace is enabled, we can ask Baritone to look at the villager
+        if (baritonePlacing.get() && isBaritoneInstalled()) {
+            IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
+
+            // Cancel all pathing behaviors before looking at the villager
+            IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
+            pathingBehavior.cancelEverything();
+            pathingBehavior.forceCancel();
+
+            Rotation rot = new Rotation((float) yaw, (float) pitch);
+            baritone.getLookBehavior().updateTarget(rot, true);
+
+            return;
+        }
+
+        mc.player.setYaw((float) yaw);
+        mc.player.setPitch((float) pitch);
+    }
+
     public void triggerInteract() {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
             if (cfPausedOnScreen.get()) {
@@ -697,11 +728,7 @@ public class VillagerRoller extends Module {
                 }
             } else {
                 if (lookAtVillagerInteract.get()) {
-                    Vec3d direction = villagerPos.subtract(playerPos).normalize();
-                    double yaw = Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90;
-                    double pitch = Math.toDegrees(-Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
-                    mc.player.setYaw((float) yaw);
-                    mc.player.setPitch((float) pitch);
+                    lookAtVillager(playerPos, villagerPos);
                 }
 
                 ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
@@ -863,24 +890,24 @@ public class VillagerRoller extends Module {
                     placeFailed("Lectern not found in hotbar");
                     return;
                 }
-                if (baritonePlacing.get()) {
-                    if (!isBaritoneInstalled()) {
-                        warning("No Baritone instance is detected, can't use baritone for placing. Disabling baritone placing.");
-                        baritonePlacing.set(false);
-                        return;
-                    }
-
+                if (baritonePlacing.get() && isBaritoneInstalled()) {
                     int x = rollingBlockPos.getX();
                     int y = rollingBlockPos.getY();
                     int z = rollingBlockPos.getZ();
 
-                    // Use Baritone to place the lectern block
                     IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
+
+                    // Ensure all previous actions are canceled before placing the block
+                    IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
+                    pathingBehavior.cancelEverything();
+                    pathingBehavior.forceCancel();
+
+                    // Use Baritone to place the lectern block
                     BetterBlockPos lecternPosition = new BetterBlockPos(x, y, z);
                     BlockOptionalMeta type = new BlockOptionalMeta(Blocks.LECTERN);
                     ISchematic schematic = new FillSchematic(1, 1, 1, type);
                     baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
-                    
+
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
                     return;
@@ -941,7 +968,7 @@ public class VillagerRoller extends Module {
                     return;
                 }
                 if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
-                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;                    
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;
                     triggerInteract();
                 }
             }
