@@ -3,6 +3,7 @@ package maxsuperman.addons.roller.modules;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import maxsuperman.addons.roller.gui.screens.EnchantmentSelectScreen;
+import maxsuperman.addons.roller.utils.BlockPlacerFactory;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
@@ -20,14 +21,12 @@ import meteordevelopment.meteorclient.gui.widgets.input.WTextBox;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WCheckbox;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
+import meteordevelopment.meteorclient.pathing.BaritoneUtils;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
 import meteordevelopment.meteorclient.utils.misc.Names;
-import meteordevelopment.meteorclient.utils.player.FindItemResult;
-import meteordevelopment.meteorclient.utils.player.InvUtils;
-import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.block.Block;
@@ -67,15 +66,6 @@ import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.VillagerProfession;
 import org.apache.commons.io.FilenameUtils;
 
-import baritone.api.BaritoneAPI;
-import baritone.api.IBaritone;
-import baritone.api.behavior.IPathingBehavior;
-import baritone.api.utils.BetterBlockPos;
-import baritone.api.utils.BlockOptionalMeta;
-import baritone.api.schematic.ISchematic;
-import baritone.api.schematic.FillSchematic;
-import baritone.api.utils.Rotation;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -83,12 +73,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import static meteordevelopment.meteorclient.MeteorClient.mc;
-
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgSound = settings.createGroup("Sound");
-    private final SettingGroup sgChatFeddback = settings.createGroup("Chat feedback", false);
+    private final SettingGroup sgChatFeedback = settings.createGroup("Chat feedback", false);
 
     private final Setting<Boolean> disableIfFound = sgGeneral.add(new BoolSetting.Builder()
         .name("disable-when-found")
@@ -160,18 +148,20 @@ public class VillagerRoller extends Module {
     private final Setting<Boolean> useBaritone = sgGeneral.add(new BoolSetting.Builder()
         .name("use-baritone")
         .description("Utilize Baritone for breaking and placing the lectern. Enable this if normal block breaking or placement is being reverted by the server's anticheat.")
+        .visible(() -> BaritoneUtils.IS_AVAILABLE)
         .defaultValue(false)
         .build());
 
     private final Setting<Integer> baritoneBlockActionTimeout = sgGeneral.add(new IntSetting.Builder()
         .name("baritone-action-timeout")
         .description("Delay after failed baritone block place/break (milliseconds)")
+        .visible(useBaritone::get)
         .defaultValue(1500)
         .min(0)
         .sliderRange(0, 10000)
         .build()
     );
-    
+
     private final Setting<Boolean> lookAtVillagerInteract = sgGeneral.add(new BoolSetting.Builder()
         .name("look-at-villager")
         .description("Look at the villager before interacting with it (required on some servers)")
@@ -227,69 +217,68 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> cfSetup = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfSetup = sgChatFeedback.add(new BoolSetting.Builder()
         .name("setup")
         .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
         .defaultValue(true)
         .build()
     );
-    
-    private final Setting<Boolean> cfInteractTimeout = sgGeneral.add(new BoolSetting.Builder()
+
+    private final Setting<Boolean> cfInteractTimeout = sgChatFeedback.add(new BoolSetting.Builder()
         .name("interact-timeout")
         .description("Villager interact packet timeout")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPausedOnScreen = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfPausedOnScreen = sgChatFeedback.add(new BoolSetting.Builder()
         .name("paused-on-screen")
         .description("Rolling paused, interact with villager to continue")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfLowerLevel = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfLowerLevel = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-lower-level")
         .description("Found enchant %s but it is not max level: %d (max) > %d (found)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfTooExpensive = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfTooExpensive = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-too-expensive")
         .description("Found enchant %s but it costs too much: %s (max price) < %d (cost)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfIgnored = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfIgnored = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-not-on-the-list")
         .description("Found enchant %s but it is not in the list.")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfProfessionTimeout = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfProfessionTimeout = sgChatFeedback.add(new BoolSetting.Builder()
         .name("profession-timeout")
         .description("Villager did not take profession within the specified time")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPlaceFailed = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfPlaceFailed = sgChatFeedback.add(new BoolSetting.Builder()
         .name("place-failed")
         .description("Failed placing, can't place or can't get lectern to hotbar (they still trigger place-failed settings)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfDiscrepancy = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfDiscrepancy = sgChatFeedback.add(new BoolSetting.Builder()
         .name("discrepancy")
         .description("Somehow roller got into state it was not expecting (likely AC mess)")
         .defaultValue(true)
         .build()
     );
-
 
 
     private enum State {
@@ -373,17 +362,6 @@ public class VillagerRoller extends Module {
             }
         }
         return this;
-    }
-
-    private boolean isBaritoneInstalled() {
-        try {
-            Class.forName("baritone.api.BaritoneAPI");
-            return true;
-        } catch (ClassNotFoundException e) {
-            warning("No Baritone instance is detected, can't use baritone for placing. Disabling baritone placing.");
-            useBaritone.set(false);
-            return false;
-        }
     }
 
     private boolean loadSearchingFromFile(File f) {
@@ -694,23 +672,7 @@ public class VillagerRoller extends Module {
         yaw += (Math.random() - 0.5) * 2;
         pitch += (Math.random() - 0.5) * 2;
 
-        // If BaritonePlace is enabled, we can ask Baritone to look at the villager
-        if (useBaritone.get() && isBaritoneInstalled()) {
-            IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
-
-            // Cancel all pathing behaviors before looking at the villager
-            IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
-            pathingBehavior.cancelEverything();
-            pathingBehavior.forceCancel();
-
-            Rotation rot = new Rotation((float) yaw, (float) pitch);
-            baritone.getLookBehavior().updateTarget(rot, true);
-
-            return;
-        }
-
-        mc.player.setYaw((float) yaw);
-        mc.player.setPitch((float) pitch);
+        BlockPlacerFactory.getBlockPlacer(useBaritone.get()).lookAt((float) yaw, (float) pitch);
     }
 
     public void triggerInteract() {
@@ -821,21 +783,6 @@ public class VillagerRoller extends Module {
         currentState = State.ROLLING_BREAKING_BLOCK;
     }
 
-    private void placeBlockBaritone(BlockPos blockPosition, Block blockType) {
-        IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
-
-        // Ensure all previous actions are canceled before placing the block
-        IPathingBehavior pathingBehavior = baritone.getPathingBehavior();
-        pathingBehavior.cancelEverything();
-        pathingBehavior.forceCancel();
-
-        // Use Baritone to place the block
-        BetterBlockPos lecternPosition = new BetterBlockPos(blockPosition);
-        BlockOptionalMeta type = new BlockOptionalMeta(blockType);
-        ISchematic schematic = new FillSchematic(1, 1, 1, type);
-        baritone.getBuilderProcess().build("Fill", schematic, lecternPosition);
-    }
-
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (currentState != State.WAITING_FOR_TARGET_VILLAGER) return;
@@ -881,18 +828,13 @@ public class VillagerRoller extends Module {
                     return;
                 }
 
-                if (useBaritone.get() && isBaritoneInstalled()) {
-                    placeBlockBaritone(rollingBlockPos, Blocks.AIR);
-
-                    prevBaritoneBlockBreak = System.currentTimeMillis();
-                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK;
-
-                    return;
-                }
-
-                if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
+                if (!BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
                     error("Can not break specified block");
                     toggle();
+                }
+                if (useBaritone.get()) {
+                    prevBaritoneBlockBreak = System.currentTimeMillis();
+                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK;
                 }
             }
             case ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK -> {
@@ -927,26 +869,14 @@ public class VillagerRoller extends Module {
                     return;
                 }
 
-                FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
-                if (!item.found()) {
-                    placeFailed("Lectern not found in hotbar");
+                if (!BlockPlacerFactory.getBlockPlacer(useBaritone.get()).placeBlock(rollingBlockPos, headRotateOnPlace.get())) {
+                    placeFailed("Failed to place lectern.  Lectern missing or can't be placed");
                     return;
                 }
-                if (useBaritone.get() && isBaritoneInstalled()) {
-                    placeBlockBaritone(rollingBlockPos, Blocks.LECTERN);
-
+                if (useBaritone.get()) {
                     prevBaritoneBlockPlace = System.currentTimeMillis();
                     currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
                     return;
-                } else {
-                    if (!BlockUtils.canPlace(rollingBlockPos, true)) {
-                        placeFailed("Can't place lectern");
-                        return;
-                    }
-                    if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                        placeFailed("Failed to place lectern");
-                        return;
-                    }
                 }
 
                 currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
