@@ -189,70 +189,68 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> cfSetup = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> instantRebreak = sgGeneral.add(new BoolSetting.Builder()
+        .name("CivBreak")
+        .description("Uses CivBreak to mine the lectern instantly. Best to just stay over the lectern slot.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Boolean> cfSetup = sgChatFeddback.add(new BoolSetting.Builder()
         .name("setup")
         .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPausedOnScreen = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfPausedOnScreen = sgChatFeddback.add(new BoolSetting.Builder()
         .name("paused-on-screen")
         .description("Rolling paused, interact with villager to continue")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfLowerLevel = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfLowerLevel = sgChatFeddback.add(new BoolSetting.Builder()
         .name("found-lower-level")
         .description("Found enchant %s but it is not max level: %d (max) > %d (found)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfTooExpensive = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfTooExpensive = sgChatFeddback.add(new BoolSetting.Builder()
         .name("found-too-expensive")
         .description("Found enchant %s but it costs too much: %s (max price) < %d (cost)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfIgnored = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfIgnored = sgChatFeddback.add(new BoolSetting.Builder()
         .name("found-not-on-the-list")
         .description("Found enchant %s but it is not in the list.")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfProfessionTimeout = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfProfessionTimeout = sgChatFeddback.add(new BoolSetting.Builder()
         .name("profession-timeout")
         .description("Villager did not take profession within the specified time")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPlaceFailed = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfPlaceFailed = sgChatFeddback.add(new BoolSetting.Builder()
         .name("place-failed")
         .description("Failed placing, can't place or can't get lectern to hotbar (they still trigger place-failed settings)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfDiscrepancy = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfDiscrepancy = sgChatFeddback.add(new BoolSetting.Builder()
         .name("discrepancy")
         .description("Somehow roller got into state it was not expecting (likely AC mess)")
         .defaultValue(true)
         .build()
     );
-
-    private final Setting<Boolean> instantRebreak = sgGeneral.add(new BoolSetting.Builder()
-        .name("CivBreak")
-        .description("Uses CivBreak to mine the lecturn instantly. Best to just stay over the lecturn slot.")
-        .defaultValue(false)
-        .build()
-    );
-
-
 
     private enum State {
         DISABLED,
