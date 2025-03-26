@@ -45,7 +45,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
@@ -241,9 +240,9 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> packetMine = sgGeneral.add(new BoolSetting.Builder()
-        .name("packet-mine")
-        .description("Packet mine")
+    private final Setting<Boolean> instantRebreak = sgGeneral.add(new BoolSetting.Builder()
+        .name("CivBreak")
+        .description("Uses CivBreak to mine the lecturn instantly. Best to just stay over the lecturn slot.")
         .defaultValue(false)
         .build()
     );
@@ -814,7 +813,7 @@ public class VillagerRoller extends Module {
         rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
         currentState = State.WAITING_FOR_TARGET_VILLAGER;
         if (cfSetup.get()) {
-            if (packetMine.get()) {
+            if (instantRebreak.get()) {
                 mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, rollingBlockPos, Direction.UP));
             }
             info("Rolling block selected, now interact with villager you want to roll");
@@ -840,11 +839,11 @@ public class VillagerRoller extends Module {
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                     return;
                 }
-                if (packetMine.get()) {
+                if (instantRebreak.get()) {
                     mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK,rollingBlockPos, Direction.DOWN));
                 }
 
-                if (!packetMine.get() && !BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
+                if (!instantRebreak.get() && !BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
                     error("Can not break specified block");
                     toggle();
                 }
