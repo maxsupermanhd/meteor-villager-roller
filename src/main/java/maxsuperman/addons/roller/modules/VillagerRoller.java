@@ -3,6 +3,7 @@ package maxsuperman.addons.roller.modules;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import maxsuperman.addons.roller.gui.screens.EnchantmentSelectScreen;
+import maxsuperman.addons.roller.utils.BlockPlacerFactory;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.InteractEntityEvent;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
@@ -20,14 +21,12 @@ import meteordevelopment.meteorclient.gui.widgets.input.WTextBox;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WCheckbox;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
+import meteordevelopment.meteorclient.pathing.BaritoneUtils;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
 import meteordevelopment.meteorclient.utils.misc.Names;
-import meteordevelopment.meteorclient.utils.player.FindItemResult;
-import meteordevelopment.meteorclient.utils.player.InvUtils;
-import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
 import net.minecraft.block.Block;
@@ -46,6 +45,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
 import net.minecraft.registry.Registry;
@@ -61,6 +61,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
@@ -74,12 +75,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import static meteordevelopment.meteorclient.MeteorClient.mc;
-
 public class VillagerRoller extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgSound = settings.createGroup("Sound");
-    private final SettingGroup sgChatFeddback = settings.createGroup("Chat feedback", false);
+    private final SettingGroup sgChatFeedback = settings.createGroup("Chat feedback", false);
 
     private final Setting<Boolean> disableIfFound = sgGeneral.add(new BoolSetting.Builder()
         .name("disable-when-found")
@@ -148,6 +147,30 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> useBaritone = sgGeneral.add(new BoolSetting.Builder()
+        .name("use-baritone")
+        .description("Utilize Baritone for breaking and placing the lectern. Enable this if normal block breaking or placement is being reverted by the server's anticheat.")
+        .visible(() -> BaritoneUtils.IS_AVAILABLE)
+        .defaultValue(false)
+        .build());
+
+    private final Setting<Integer> baritoneBlockActionTimeout = sgGeneral.add(new IntSetting.Builder()
+        .name("baritone-action-timeout")
+        .description("Delay after failed baritone block place/break (milliseconds)")
+        .visible(useBaritone::get)
+        .defaultValue(1500)
+        .min(0)
+        .sliderRange(0, 10000)
+        .build()
+    );
+
+    private final Setting<Boolean> lookAtVillagerInteract = sgGeneral.add(new BoolSetting.Builder()
+        .name("look-at-villager")
+        .description("Look at the villager before interacting with it (required on some servers)")
+        .defaultValue(false)
+        .build()
+    );
+
     private final Setting<Integer> failedToPlaceDelay = sgGeneral.add(new IntSetting.Builder()
         .name("place-fail-delay")
         .description("Delay after failed block place (milliseconds)")
@@ -173,6 +196,15 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Integer> maxInteractWaitTime = sgGeneral.add(new IntSetting.Builder()
+        .name("max-interact-wait-time")
+        .description("Delay after failed villager interact (milliseconds)")
+        .defaultValue(500)
+        .min(0)
+        .sliderRange(0, 10000)
+        .build()
+    );
+
     private final Setting<Boolean> onlyTradable = sgGeneral.add(new BoolSetting.Builder()
         .name("only-tradable")
         .description("Hide enchantments that are not marked as tradable")
@@ -187,56 +219,70 @@ public class VillagerRoller extends Module {
         .build()
     );
 
-    private final Setting<Boolean> cfSetup = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfSetup = sgChatFeedback.add(new BoolSetting.Builder()
         .name("setup")
         .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPausedOnScreen = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfInteractTimeout = sgChatFeedback.add(new BoolSetting.Builder()
+        .name("interact-timeout")
+        .description("Villager interact packet timeout")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfPausedOnScreen = sgChatFeedback.add(new BoolSetting.Builder()
         .name("paused-on-screen")
         .description("Rolling paused, interact with villager to continue")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfLowerLevel = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> instantRebreak = sgGeneral.add(new BoolSetting.Builder()
+        .name("CivBreak")
+        .description("Uses CivBreak to mine the lecturn instantly. Best to just stay over the lecturn slot.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Boolean> cfLowerLevel = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-lower-level")
         .description("Found enchant %s but it is not max level: %d (max) > %d (found)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfTooExpensive = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfTooExpensive = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-too-expensive")
         .description("Found enchant %s but it costs too much: %s (max price) < %d (cost)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfIgnored = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfIgnored = sgChatFeedback.add(new BoolSetting.Builder()
         .name("found-not-on-the-list")
         .description("Found enchant %s but it is not in the list.")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfProfessionTimeout = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfProfessionTimeout = sgChatFeedback.add(new BoolSetting.Builder()
         .name("profession-timeout")
         .description("Villager did not take profession within the specified time")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfPlaceFailed = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfPlaceFailed = sgChatFeedback.add(new BoolSetting.Builder()
         .name("place-failed")
         .description("Failed placing, can't place or can't get lectern to hotbar (they still trigger place-failed settings)")
         .defaultValue(true)
         .build()
     );
 
-    private final Setting<Boolean> cfDiscrepancy = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> cfDiscrepancy = sgChatFeedback.add(new BoolSetting.Builder()
         .name("discrepancy")
         .description("Somehow roller got into state it was not expecting (likely AC mess)")
         .defaultValue(true)
@@ -244,14 +290,15 @@ public class VillagerRoller extends Module {
     );
 
 
-
     private enum State {
         DISABLED,
         WAITING_FOR_TARGET_BLOCK,
         WAITING_FOR_TARGET_VILLAGER,
         ROLLING_BREAKING_BLOCK,
+        ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK,
         ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR,
         ROLLING_PLACING_BLOCK,
+        ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE,
         ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW,
         ROLLING_WAITING_FOR_VILLAGER_TRADES
     }
@@ -263,6 +310,9 @@ public class VillagerRoller extends Module {
     private Block rollingBlock;
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
     private long failedToPlacePrevMsg = System.currentTimeMillis();
+    private long prevVillagerInteractTime = System.currentTimeMillis();
+    private long prevBaritoneBlockBreak = System.currentTimeMillis();
+    private long prevBaritoneBlockPlace = System.currentTimeMillis();
     private long currentProfessionWaitTime;
 
     public VillagerRoller() {
@@ -622,6 +672,18 @@ public class VillagerRoller extends Module {
         return e.isIn(EnchantmentTags.DOUBLE_TRADE_PRICE) ? (2 + 3 * e.value().getMaxLevel()) * 2 : 2 + 3 * e.value().getMaxLevel();
     }
 
+    public void lookAtVillager(Vec3d playerPos, Vec3d villagerPos) {
+        Vec3d direction = villagerPos.subtract(playerPos).normalize();
+        double yaw = Math.toDegrees(Math.atan2(direction.z, direction.x)) - 90;
+        double pitch = Math.toDegrees(-Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
+
+        // Add some random noise to prevent anticheat detection
+        yaw += (Math.random() - 0.5) * 2;
+        pitch += (Math.random() - 0.5) * 2;
+
+        BlockPlacerFactory.getBlockPlacer(useBaritone.get()).lookAt((float) yaw, (float) pitch);
+    }
+
     public void triggerInteract() {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
             if (cfPausedOnScreen.get()) {
@@ -633,13 +695,24 @@ public class VillagerRoller extends Module {
             EntityHitResult entityHitResult = ProjectileUtil.raycast(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::canHit, playerPos.squaredDistanceTo(villagerPos));
             if (entityHitResult == null) {
                 // Raycast didn't find villager entity?
-                mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                ActionResult actionResultDirect = mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                if (!actionResultDirect.isAccepted()) {
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                }
             } else {
+                if (lookAtVillagerInteract.get()) {
+                    lookAtVillager(playerPos, villagerPos);
+                }
+
                 ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
                 if (!actionResult.isAccepted()) {
-                    mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                    ActionResult actionResultDirect = mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                    if (!actionResultDirect.isAccepted()) {
+                        currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                    }
                 }
             }
+            prevVillagerInteractTime = System.currentTimeMillis();
         }
     }
 
@@ -740,6 +813,9 @@ public class VillagerRoller extends Module {
         rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
         currentState = State.WAITING_FOR_TARGET_VILLAGER;
         if (cfSetup.get()) {
+            if (instantRebreak.get()) {
+                mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, rollingBlockPos, Direction.UP));
+            }
             info("Rolling block selected, now interact with villager you want to roll");
         }
     }
@@ -761,9 +837,32 @@ public class VillagerRoller extends Module {
                 if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
                     // info("Block is broken, waiting for villager to clean profession...");
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
-                } else if (!BlockUtils.breakBlock(rollingBlockPos, true)) {
+                    return;
+                }
+                if (instantRebreak.get()) {
+                    mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK,rollingBlockPos, Direction.DOWN));
+                }
+
+                if (!instantRebreak.get() && !BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
                     error("Can not break specified block");
                     toggle();
+                }
+                if (useBaritone.get()) {
+                    prevBaritoneBlockBreak = System.currentTimeMillis();
+                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK;
+                }
+            }
+            case ROLLING_WAITING_FOR_BARITONE_BLOCK_BREAK -> {
+                if (baritoneBlockActionTimeout.get() + prevBaritoneBlockBreak <= System.currentTimeMillis()) {
+                    if (cfPlaceFailed.get()) {
+                        info("Baritone failed to break block");
+                    }
+                    currentState = State.ROLLING_BREAKING_BLOCK;
+                    return;
+                }
+
+                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR -> {
@@ -780,19 +879,39 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_PLACING_BLOCK -> {
-                FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
-                if (!item.found()) {
-                    placeFailed("Lectern not found in hotbar");
+                // Check if failedToPlaceDelay has passed
+                if (failedToPlacePrevMsg + failedToPlaceDelay.get() > System.currentTimeMillis()) {
                     return;
                 }
-                if (!BlockUtils.canPlace(rollingBlockPos, true)) {
-                    placeFailed("Can't place lectern");
+
+                if (!BlockPlacerFactory.getBlockPlacer(useBaritone.get()).placeBlock(rollingBlockPos, headRotateOnPlace.get())) {
+                    placeFailed("Failed to place lectern.  Lectern missing or can't be placed");
                     return;
                 }
-                if (!BlockUtils.place(rollingBlockPos, item, headRotateOnPlace.get(), 5)) {
-                    placeFailed("Failed to place lectern");
+                if (useBaritone.get()) {
+                    prevBaritoneBlockPlace = System.currentTimeMillis();
+                    currentState = State.ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE;
                     return;
                 }
+
+                currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                if (maxProfessionWaitTime.get() > 0) {
+                    currentProfessionWaitTime = System.currentTimeMillis();
+                }
+            }
+            case ROLLING_WAITING_FOR_BARITONE_BLOCK_PLACE -> {
+                if (baritoneBlockActionTimeout.get() + prevBaritoneBlockPlace <= System.currentTimeMillis()) {
+                    if (cfPlaceFailed.get()) {
+                        info("Baritone failed to place lectern");
+                    }
+                    currentState = State.ROLLING_BREAKING_BLOCK;
+                    return;
+                }
+
+                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                    return;
+                }
+
                 currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 if (maxProfessionWaitTime.get() > 0) {
                     currentProfessionWaitTime = System.currentTimeMillis();
@@ -823,6 +942,16 @@ public class VillagerRoller extends Module {
                 if (rollingVillager.getVillagerData().getProfession() != VillagerProfession.NONE) {
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;
                     triggerInteract();
+                }
+            }
+            case ROLLING_WAITING_FOR_VILLAGER_TRADES -> {
+                if (prevVillagerInteractTime + maxInteractWaitTime.get() <= System.currentTimeMillis()) {
+                    if (cfInteractTimeout.get()) {
+                        info("Villager interact packet timeout");
+                        prevVillagerInteractTime = 0;
+                    }
+                    // We want to retry interact
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
                 }
             }
             default -> {
