@@ -45,6 +45,8 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
 import net.minecraft.registry.Registry;
@@ -60,6 +62,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.village.TradeOffer;
 import net.minecraft.village.TradeOfferList;
@@ -235,6 +238,13 @@ public class VillagerRoller extends Module {
         .name("paused-on-screen")
         .description("Rolling paused, interact with villager to continue")
         .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> packetMine = sgGeneral.add(new BoolSetting.Builder()
+        .name("packet-mine")
+        .description("Packet mine")
+        .defaultValue(false)
         .build()
     );
 
@@ -804,6 +814,9 @@ public class VillagerRoller extends Module {
         rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
         currentState = State.WAITING_FOR_TARGET_VILLAGER;
         if (cfSetup.get()) {
+            if (packetMine.get()) {
+                mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, rollingBlockPos, Direction.UP));
+            }
             info("Rolling block selected, now interact with villager you want to roll");
         }
     }
@@ -827,8 +840,11 @@ public class VillagerRoller extends Module {
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                     return;
                 }
+                if (packetMine.get()) {
+                    mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK,rollingBlockPos, Direction.DOWN));
+                }
 
-                if (!BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
+                if (!packetMine.get() && !BlockPlacerFactory.getBlockPlacer(useBaritone.get()).breakBlock(rollingBlockPos)) {
                     error("Can not break specified block");
                     toggle();
                 }
@@ -933,6 +949,7 @@ public class VillagerRoller extends Module {
                 if (prevVillagerInteractTime + maxInteractWaitTime.get() <= System.currentTimeMillis()) {
                     if (cfInteractTimeout.get()) {
                         info("Villager interact packet timeout");
+                        prevVillagerInteractTime = 0;
                     }
                     // We want to retry interact
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
