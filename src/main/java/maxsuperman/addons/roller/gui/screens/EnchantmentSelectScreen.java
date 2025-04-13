@@ -9,7 +9,6 @@ import meteordevelopment.meteorclient.gui.widgets.input.WTextBox;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.utils.misc.Names;
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.EnchantmentTags;
@@ -24,13 +23,13 @@ public class EnchantmentSelectScreen extends WindowScreen {
     private final GuiTheme theme;
     private final EnchantmentSelectCallback callback;
     private String filterText = "";
-    private final boolean onlyTradable;
+    private final boolean onlyTradeable;
 
-    public EnchantmentSelectScreen(GuiTheme theme, boolean onlyTradable, EnchantmentSelectCallback callback) {
+    public EnchantmentSelectScreen(GuiTheme theme, boolean onlyTradeable, EnchantmentSelectCallback callback) {
         super(theme, "Select enchantment");
         this.theme = theme;
         this.callback = callback;
-        this.onlyTradable = onlyTradable;
+        this.onlyTradeable = onlyTradeable;
     }
 
     public interface EnchantmentSelectCallback {
@@ -73,7 +72,7 @@ public class EnchantmentSelectScreen extends WindowScreen {
         }
         var reg = mc.world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
         List<RegistryEntry<Enchantment>> available = new ArrayList<>();
-        if (this.onlyTradable) {
+        if (this.onlyTradeable) {
             var l = reg.iterateEntries(EnchantmentTags.TRADEABLE);
             l.forEach(available::add);
         } else {
