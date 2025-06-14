@@ -12,7 +12,7 @@
   "contact": {
     "repo": "https://github.com/maxsupermanhd/meteor-villager-roller"
   },
-  "icon": "assets/template/icon.png",
+  "icon": "assets/roller/icon.png",
   "environment": "client",
   "entrypoints": {
     "meteor": [
