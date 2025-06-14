@@ -193,6 +193,15 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Integer> interactRetry = sgGeneral.add(new IntSetting.Builder()
+        .name("interact-retry")
+        .description("If server did not acknowledge villager interact packet, send another one after this many ticks. Zero = no retries.")
+        .defaultValue(0)
+        .min(0)
+        .sliderRange(0, 200)
+        .build()
+    );
+
     private final Setting<Boolean> cfSetup = sgChatFeedback.add(new BoolSetting.Builder()
         .name("setup")
         .description("Hints on what to do in the beginning (otherwise denoted in modules list state)")
@@ -245,6 +254,13 @@ public class VillagerRoller extends Module {
     private final Setting<Boolean> cfDiscrepancy = sgChatFeedback.add(new BoolSetting.Builder()
         .name("discrepancy")
         .description("Somehow roller got into state it was not expecting (likely AC mess)")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> cfSentRetryInteract = sgChatFeedback.add(new BoolSetting.Builder()
+        .name("sent-retry-interact")
+        .description("Lets you know server dropping initial interact packets and additional was sent.")
         .defaultValue(true)
         .build()
     );
@@ -626,6 +642,8 @@ public class VillagerRoller extends Module {
         return e.isIn(EnchantmentTags.DOUBLE_TRADE_PRICE) ? (2 + 3 * e.value().getMaxLevel()) * 2 : 2 + 3 * e.value().getMaxLevel();
     }
 
+    private long waitingForTradesTicks = 0;
+
     public void triggerInteract() {
         if (pauseOnScreen.get() && mc.currentScreen != null) {
             if (cfPausedOnScreen.get()) {
@@ -638,10 +656,12 @@ public class VillagerRoller extends Module {
             if (entityHitResult == null) {
                 // Raycast didn't find villager entity?
                 mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                waitingForTradesTicks = 0;
             } else {
                 ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
                 if (!actionResult.isAccepted()) {
                     mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                    waitingForTradesTicks = 0;
                 }
             }
         }
@@ -852,6 +872,19 @@ public class VillagerRoller extends Module {
                         triggerInteract();
                     }
                 });
+            }
+            case ROLLING_WAITING_FOR_VILLAGER_TRADES -> {
+                var retryTicks = interactRetry.get();
+                if (retryTicks > 0) {
+                    if (waitingForTradesTicks >= retryTicks) {
+                        if (cfSentRetryInteract.get()) {
+                            info("Sending another interact packet");
+                        }
+                        triggerInteract();
+                    } else {
+                        waitingForTradesTicks++;
+                    }
+                }
             }
             default -> {
                 // Wait for another state
