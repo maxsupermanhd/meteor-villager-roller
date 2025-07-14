@@ -686,7 +686,7 @@ public class VillagerRoller extends Module {
         for (TradeOffer offer : l) {
             ItemStack sellItem = offer.getSellItem();
             if (!sellItem.isOf(Items.ENCHANTED_BOOK) || sellItem.get(DataComponentTypes.STORED_ENCHANTMENTS) == null)
-                break;
+                continue;
 
             for (Pair<RegistryEntry<Enchantment>, Integer> enchant : getEnchants(sellItem)) {
                 int enchantLevel = enchant.right();
