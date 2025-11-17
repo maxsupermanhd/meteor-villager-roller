@@ -1,11 +1,11 @@
 plugins {
-    id("fabric-loom") version "1.11-SNAPSHOT"
-    id("org.ajoberstar.grgit") version "5.0.0"
+    alias(libs.plugins.fabric.loom)
+    alias(libs.plugins.grgit)
 }
 
 base {
     archivesName = properties["archives_base_name"] as String
-    version = "${properties["mod_version"] as String}+mc${properties["minecraft_version"] as String}-${getVersionMetadata()}"
+    version = "${libs.versions.mod.version.get()}+mc${libs.versions.minecraft.get()}-${getVersionMetadata()}"
     group = properties["maven_group"] as String
 }
 
@@ -26,19 +26,19 @@ repositories {
 
 dependencies {
     // Fabric
-    minecraft("com.mojang:minecraft:${properties["minecraft_version"] as String}")
-    mappings("net.fabricmc:yarn:${properties["yarn_mappings"] as String}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${properties["loader_version"] as String}")
+    minecraft(libs.minecraft)
+    mappings(variantOf(libs.yarn) { classifier("v2") })
+    modImplementation(libs.fabric.loader)
 
     // Meteor
-    modImplementation("meteordevelopment:meteor-client:${properties["minecraft_version"] as String}-SNAPSHOT")
+    modImplementation(libs.meteor.client)
 }
 
 tasks {
     processResources {
         val propertyMap = mapOf(
             "version" to project.version,
-            "mc_version" to project.property("minecraft_version"),
+            "mc_version" to libs.versions.minecraft.get(),
         )
 
         filesMatching("fabric.mod.json") {
