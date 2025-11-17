@@ -1,6 +1,7 @@
+import java.util.concurrent.TimeUnit
+
 plugins {
     alias(libs.plugins.fabric.loom)
-    alias(libs.plugins.grgit)
 }
 
 base {
@@ -70,23 +71,41 @@ configurations.modImplementation {
 
 fun getVersionMetadata(): String {
     val buildId = System.getenv("GITHUB_RUN_NUMBER")
-
-    // CI builds only
     if (buildId != null) {
-        return "build.${buildId}"
+        return "build.$buildId"
     }
 
     return try {
-        val head = grgit.head()
-        var id = head.abbreviatedId
+        val headHash = executeGitCommand("git", "rev-parse", "--short", "HEAD").trim()
 
-        // Flag the build if the build tree is not clean
-        if (!grgit.status().isClean) {
-            id += "-dirty"
-        }
+        val status = executeGitCommand("git", "status", "--porcelain").trim()
+        val isClean = status.isEmpty()
+
+        val id = if (isClean) headHash else "$headHash-dirty"
         "rev.$id"
     } catch (e: Exception) {
-        // No tracking information could be found about the build
+        logger.warn("Unable to determine Git metadata: ${e.message}")
         "unknown"
     }
+}
+
+fun executeGitCommand(vararg command: String): String {
+    val process = ProcessBuilder(*command)
+        .directory(project.rootDir)
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+
+    val finished = process.waitFor(10, TimeUnit.SECONDS)
+    if (!finished) {
+        process.destroyForcibly()
+        throw RuntimeException("Git command timed out: ${command.joinToString(" ")}")
+    }
+
+    if (process.exitValue() != 0) {
+        val err = process.errorStream.bufferedReader().readText()
+        throw RuntimeException("Git command failed: $err")
+    }
+
+    return process.inputStream.bufferedReader().readText()
 }

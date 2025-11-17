@@ -9,8 +9,6 @@ fabric-loader = "0.17.3"
 # Plugins
 # Loom (https://github.com/FabricMC/fabric-loom)
 loom = "1.12-SNAPSHOT"
-# Grgit (https://git.sr.ht/~ajoberstar/grgit)
-grgit = "5.0.0"
 
 # Meteor (https://github.com/MeteorDevelopment/meteor-client)
 meteor = "1.21.10-SNAPSHOT"
@@ -26,4 +24,3 @@ meteor-client = { module = "meteordevelopment:meteor-client", version.ref = "met
 
 [plugins]
 fabric-loom = { id = "fabric-loom", version.ref = "loom" }
-grgit = { id = "org.ajoberstar.grgit", version.ref = "grgit" }
