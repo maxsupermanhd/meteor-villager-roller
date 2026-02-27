@@ -265,6 +265,13 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> cfBlockPlaceBounce = sgChatFeedback.add(new BoolSetting.Builder()
+        .name("block-place-bounce")
+        .description("Lets you know if placement was momentarily reverted and then placed again.")
+        .defaultValue(true)
+        .build()
+    );
+
     private enum State {
         DISABLED,
         WAITING_FOR_TARGET_BLOCK,
@@ -826,6 +833,13 @@ public class VillagerRoller extends Module {
                 });
             }
             case ROLLING_PLACING_BLOCK -> {
+                if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                    if (cfBlockPlaceBounce.get()) {
+                        info("Lectern placement bounced?");
+                    }
+                    currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_NEW;
+                    return;
+                }
                 FindItemResult item = InvUtils.findInHotbar(rollingBlock.asItem());
                 if (!item.found()) {
                     placeFailed("Lectern not found in hotbar");
