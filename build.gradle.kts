@@ -28,11 +28,11 @@ repositories {
 dependencies {
     // Fabric
     minecraft(libs.minecraft)
-    mappings(loom.officialMojangMappings())
-    modImplementation(libs.fabric.loader)
+    implementation(libs.fabric.loader)
 
     // Meteor
-    modImplementation(libs.meteor.client)
+    implementation(libs.meteor.client)
+    implementation(libs.orbit)
 }
 
 tasks {
@@ -40,6 +40,7 @@ tasks {
         val propertyMap = mapOf(
             "version" to project.version,
             "mc_version" to libs.versions.minecraft.get(),
+            "jdk_version" to libs.versions.jdk.get(),
         )
 
         filesMatching("fabric.mod.json") {
@@ -55,17 +56,18 @@ tasks {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(libs.versions.jdk.get().toInt()))
+        }
     }
 
     withType<JavaCompile> {
         options.encoding = "UTF-8"
-        options.release = 21
+        options.release = 25
     }
 }
 
-configurations.modImplementation {
+configurations.implementation {
     exclude("club.minnced")// fuck you
 }
 
