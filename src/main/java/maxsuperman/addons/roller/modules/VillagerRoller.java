@@ -30,42 +30,42 @@ import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.enchantment.EnchantmentLevelEntry;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.s2c.play.SetTradeOffersS2CPacket;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.registry.tag.EnchantmentTags;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.village.TradeOffer;
-import net.minecraft.village.TradeOfferList;
-import net.minecraft.village.VillagerProfession;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundMerchantOffersPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.EnchantmentTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -111,7 +111,7 @@ public class VillagerRoller extends Module {
     private final Setting<List<SoundEvent>> sound = sgSound.add(new SoundEventListSetting.Builder()
         .name("sound-to-play")
         .description("Sound that will be played when desired trade is found if enabled")
-        .defaultValue(Collections.singletonList(SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK))
+        .defaultValue(Collections.singletonList(SoundEvents.AMETHYST_CLUSTER_BREAK))
         .build()
     );
 
@@ -285,7 +285,7 @@ public class VillagerRoller extends Module {
 
     private static final Path CONFIG_PATH = MeteorClient.FOLDER.toPath().resolve("VillagerRoller");
     private State currentState = State.DISABLED;
-    private VillagerEntity rollingVillager;
+    private Villager rollingVillager;
     private BlockPos rollingBlockPos;
     private Block rollingBlock;
     private final List<RollingEnchantment> searchingEnchants = new ArrayList<>();
@@ -321,10 +321,10 @@ public class VillagerRoller extends Module {
     }
 
     @Override
-    public NbtCompound toTag() {
-        NbtCompound tag = super.toTag();
+    public CompoundTag toTag() {
+        CompoundTag tag = super.toTag();
         if (saveListToConfig.get()) {
-            NbtList l = new NbtList();
+            ListTag l = new ListTag();
             for (RollingEnchantment e : searchingEnchants) {
                 l.add(e.toTag());
             }
@@ -334,17 +334,17 @@ public class VillagerRoller extends Module {
     }
 
     @Override
-    public Module fromTag(NbtCompound tag) {
+    public Module fromTag(CompoundTag tag) {
         super.fromTag(tag);
         if (saveListToConfig.get()) {
-            NbtList l = tag.getListOrEmpty("rolling");
+            ListTag l = tag.getListOrEmpty("rolling");
             searchingEnchants.clear();
-            for (NbtElement e : l) {
-                if (e.getType() != NbtElement.COMPOUND_TYPE) {
+            for (Tag e : l) {
+                if (e.getId() != Tag.TAG_COMPOUND) {
                     info("Invalid list element");
                     continue;
                 }
-                searchingEnchants.add(new RollingEnchantment().fromTag((NbtCompound) e));
+                searchingEnchants.add(new RollingEnchantment().fromTag((CompoundTag) e));
             }
         }
         return this;
@@ -355,7 +355,7 @@ public class VillagerRoller extends Module {
             error("File does not exist or can not be loaded");
             return false;
         }
-        NbtCompound r = null;
+        CompoundTag r = null;
         try {
             r = NbtIo.read(f.toPath());
         } catch (IOException e) {
@@ -365,24 +365,24 @@ public class VillagerRoller extends Module {
             error("Failed to load nbt from file");
             return false;
         }
-        NbtList l = r.getListOrEmpty("rolling");
+        ListTag l = r.getListOrEmpty("rolling");
         searchingEnchants.clear();
-        for (NbtElement e : l) {
-            if (e.getType() != NbtElement.COMPOUND_TYPE) {
+        for (Tag e : l) {
+            if (e.getId() != Tag.TAG_COMPOUND) {
                 error("Invalid list element");
                 return false;
             }
-            searchingEnchants.add(new RollingEnchantment().fromTag((NbtCompound) e));
+            searchingEnchants.add(new RollingEnchantment().fromTag((CompoundTag) e));
         }
         return true;
     }
 
     public boolean saveSearchingToFile(File f) {
-        NbtList l = new NbtList();
+        ListTag l = new ListTag();
         for (RollingEnchantment e : searchingEnchants) {
             l.add(e.toTag());
         }
-        NbtCompound c = new NbtCompound();
+        CompoundTag c = new CompoundTag();
         c.put("rolling", l);
         if (Files.notExists(f.getParentFile().toPath()) && !f.getParentFile().mkdirs()) {
             error("Failed to make directories");
@@ -451,7 +451,7 @@ public class VillagerRoller extends Module {
         WSection enchantments = list.add(theme.section("Enchantments")).expandX().widget();
 
         WTable table = enchantments.add(theme.table()).expandX().widget();
-        table.add(theme.item(Items.BOOK.getDefaultStack()));
+        table.add(theme.item(Items.BOOK.getDefaultInstance()));
         table.add(theme.label("Enchantment"));
         table.add(theme.label("Level"));
         table.add(theme.label("Cost"));
@@ -464,25 +464,25 @@ public class VillagerRoller extends Module {
         }
 
         Optional<Registry<Enchantment>> reg;
-        if (mc.world != null) {
-            reg = mc.world.getRegistryManager().getOptional(RegistryKeys.ENCHANTMENT);
+        if (mc.level != null) {
+            reg = mc.level.registryAccess().lookup(Registries.ENCHANTMENT);
         } else {
             reg = Optional.empty();
         }
 
         for (int i = 0; i < searchingEnchants.size(); i++) {
             RollingEnchantment e = searchingEnchants.get(i);
-            Optional<RegistryEntry.Reference<Enchantment>> en;
+            Optional<Holder.Reference<Enchantment>> en;
             if (reg.isPresent()) {
-                en = reg.get().getEntry(e.enchantment);
+                en = reg.get().get(e.enchantment);
             } else {
                 en = Optional.empty();
             }
             final int si = i;
-            ItemStack book = Items.ENCHANTED_BOOK.getDefaultStack();
+            ItemStack book = Items.ENCHANTED_BOOK.getDefaultInstance();
             int maxlevel = 255;
             if (en.isPresent()) {
-                book = EnchantmentHelper.getEnchantedBookWith(new EnchantmentLevelEntry(en.get(), en.get().value().getMaxLevel()));
+                book = EnchantmentHelper.createBook(new EnchantmentInstance(en.get(), en.get().value().getMaxLevel()));
                 maxlevel = en.get().value().getMaxLevel();
             }
             table.add(theme.item(book));
@@ -555,8 +555,8 @@ public class VillagerRoller extends Module {
             list.clear();
             searchingEnchants.clear();
             if (reg.isPresent()) {
-                for (RegistryEntry<Enchantment> e : getEnchants(onlyTradeable.get())) {
-                    searchingEnchants.add(new RollingEnchantment(reg.get().getId(e.value()), e.value().getMaxLevel(), getMinimumPrice(e), true));
+                for (Holder<Enchantment> e : getEnchants(onlyTradeable.get())) {
+                    searchingEnchants.add(new RollingEnchantment(reg.get().getKey(e.value()), e.value().getMaxLevel(), getMinimumPrice(e), true));
                 }
             }
             fillWidget(theme, list);
@@ -568,7 +568,7 @@ public class VillagerRoller extends Module {
             list.clear();
             if (reg.isPresent()) {
                 for (RollingEnchantment e : searchingEnchants) {
-                    reg.get().getEntry(e.enchantment).ifPresent(enchantmentReference -> e.maxCost = getMinimumPrice(enchantmentReference));
+                    reg.get().get(e.enchantment).ifPresent(enchantmentReference -> e.maxCost = getMinimumPrice(enchantmentReference));
                 }
             }
             fillWidget(theme, list);
@@ -623,60 +623,60 @@ public class VillagerRoller extends Module {
 
     }
 
-    public List<RegistryEntry<Enchantment>> getEnchants(boolean onlyTradeable) {
-        if (mc.world == null) {
+    public List<Holder<Enchantment>> getEnchants(boolean onlyTradeable) {
+        if (mc.level == null) {
             return Collections.emptyList();
         }
-        var reg = mc.world.getRegistryManager().getOptional(RegistryKeys.ENCHANTMENT);
+        var reg = mc.level.registryAccess().lookup(Registries.ENCHANTMENT);
         if (reg.isEmpty()) {
             return Collections.emptyList();
         }
-        List<RegistryEntry<Enchantment>> available = new ArrayList<>();
+        List<Holder<Enchantment>> available = new ArrayList<>();
         if (onlyTradeable) {
-            var i = reg.get().iterateEntries(EnchantmentTags.TRADEABLE);
+            var i = reg.get().getTagOrEmpty(EnchantmentTags.TRADEABLE);
             i.iterator().forEachRemaining(available::add);
             return available;
         } else {
-            for (var a : reg.get().getIndexedEntries()) {
+            for (var a : reg.get().asHolderIdMap()) {
                 available.add(a);
             }
             return available;
         }
     }
 
-    public static int getMinimumPrice(RegistryEntry<Enchantment> e) {
+    public static int getMinimumPrice(Holder<Enchantment> e) {
         if (e == null) return 0;
-        return e.isIn(EnchantmentTags.DOUBLE_TRADE_PRICE) ? (2 + 3 * e.value().getMaxLevel()) * 2 : 2 + 3 * e.value().getMaxLevel();
+        return e.is(EnchantmentTags.DOUBLE_TRADE_PRICE) ? (2 + 3 * e.value().getMaxLevel()) * 2 : 2 + 3 * e.value().getMaxLevel();
     }
 
     private long waitingForTradesTicks = 0;
 
     public void triggerInteract() {
-        if (pauseOnScreen.get() && mc.currentScreen != null) {
+        if (pauseOnScreen.get() && mc.screen != null) {
             if (cfPausedOnScreen.get()) {
                 info("Rolling paused, interact with villager to continue");
             }
         } else {
-            Vec3d playerPos = mc.player.getEyePos();
-            Vec3d villagerPos = rollingVillager.getEyePos();
-            EntityHitResult entityHitResult = ProjectileUtil.raycast(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::canHit, playerPos.squaredDistanceTo(villagerPos));
+            Vec3 playerPos = mc.player.getEyePosition();
+            Vec3 villagerPos = rollingVillager.getEyePosition();
+            EntityHitResult entityHitResult = ProjectileUtil.getEntityHitResult(mc.player, playerPos, villagerPos, rollingVillager.getBoundingBox(), Entity::isPickable, playerPos.distanceToSqr(villagerPos));
             if (entityHitResult == null) {
                 // Raycast didn't find villager entity?
-                mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                mc.gameMode.interact(mc.player, rollingVillager, InteractionHand.MAIN_HAND);
                 waitingForTradesTicks = 0;
             } else {
-                ActionResult actionResult = mc.interactionManager.interactEntityAtLocation(mc.player, rollingVillager, entityHitResult, Hand.MAIN_HAND);
-                if (!actionResult.isAccepted()) {
-                    mc.interactionManager.interactEntity(mc.player, rollingVillager, Hand.MAIN_HAND);
+                InteractionResult actionResult = mc.gameMode.interactAt(mc.player, rollingVillager, entityHitResult, InteractionHand.MAIN_HAND);
+                if (!actionResult.consumesAction()) {
+                    mc.gameMode.interact(mc.player, rollingVillager, InteractionHand.MAIN_HAND);
                     waitingForTradesTicks = 0;
                 }
             }
         }
     }
 
-    public List<Pair<RegistryEntry<Enchantment>, Integer>> getEnchants(ItemStack stack) {
-        List<Pair<RegistryEntry<Enchantment>, Integer>> ret = new ArrayList<>();
-        for (var e : EnchantmentHelper.getEnchantments(stack).getEnchantmentEntries()) {
+    public List<Pair<Holder<Enchantment>, Integer>> getEnchants(ItemStack stack) {
+        List<Pair<Holder<Enchantment>, Integer>> ret = new ArrayList<>();
+        for (var e : EnchantmentHelper.getEnchantmentsForCrafting(stack).entrySet()) {
             ret.add(ObjectIntImmutablePair.of(e.getKey(), e.getIntValue()));
         }
         return ret;
@@ -685,20 +685,20 @@ public class VillagerRoller extends Module {
     @EventHandler
     private void onReceivePacket(PacketEvent.Receive event) {
         if (currentState != State.ROLLING_WAITING_FOR_VILLAGER_TRADES) return;
-        if (!(event.packet instanceof SetTradeOffersS2CPacket p)) return;
-        mc.executeSync(() -> triggerTradeCheck(p.getOffers()));
+        if (!(event.packet instanceof ClientboundMerchantOffersPacket p)) return;
+        mc.executeIfPossible(() -> triggerTradeCheck(p.getOffers()));
     }
 
-    public void triggerTradeCheck(TradeOfferList l) {
-        for (TradeOffer offer : l) {
-            ItemStack sellItem = offer.getSellItem();
-            if (!sellItem.isOf(Items.ENCHANTED_BOOK) || sellItem.get(DataComponentTypes.STORED_ENCHANTMENTS) == null)
+    public void triggerTradeCheck(MerchantOffers l) {
+        for (MerchantOffer offer : l) {
+            ItemStack sellItem = offer.getResult();
+            if (!sellItem.is(Items.ENCHANTED_BOOK) || sellItem.get(DataComponents.STORED_ENCHANTMENTS) == null)
                 continue;
 
-            for (Pair<RegistryEntry<Enchantment>, Integer> enchant : getEnchants(sellItem)) {
+            for (Pair<Holder<Enchantment>, Integer> enchant : getEnchants(sellItem)) {
                 int enchantLevel = enchant.right();
-                var reg = mc.world.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT);
-                String enchantIdString = reg.getId(enchant.key().value()).toString();
+                var reg = mc.level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+                String enchantIdString = reg.getKey(enchant.key().value()).toString();
                 String enchantName = Names.get(enchant.key());
 
                 boolean found = false;
@@ -721,36 +721,36 @@ public class VillagerRoller extends Module {
                         }
                         continue;
                     }
-                    if (e.maxCost > 0 && offer.getOriginalFirstBuyItem().getCount() > e.maxCost) {
+                    if (e.maxCost > 0 && offer.getBaseCostA().getCount() > e.maxCost) {
                         if (cfTooExpensive.get()) {
                             info(String.format("Found enchant %s but it costs too much: %s (max price) < %d (cost)",
-                                enchantName, e.maxCost, offer.getOriginalFirstBuyItem().getCount()));
+                                enchantName, e.maxCost, offer.getBaseCostA().getCount()));
                         }
                         continue;
                     }
                     if (disableIfFound.get()) e.enabled = false;
                     toggle();
                     if (enablePlaySound.get() && !sound.get().isEmpty()) {
-                        mc.getSoundManager().play(PositionedSoundInstance.master(sound.get().get(0),
+                        mc.getSoundManager().play(SimpleSoundInstance.forUI(sound.get().get(0),
                             soundPitch.get().floatValue(), soundVolume.get().floatValue()));
                     }
                     if (disconnectIfFound.get()) {
                         String levelText = (enchantLevel > 1 || enchant.key().value().getMaxLevel() > 1) ? " " + enchantLevel : "";
                         String message = String.format(
                             "%s[%s%s%s] Found enchant %s%s%s%s for %s%d%s emeralds and automatically disconnected.",
-                            Formatting.GRAY,
-                            Formatting.GREEN,
+                            ChatFormatting.GRAY,
+                            ChatFormatting.GREEN,
                             title,
-                            Formatting.GRAY,
-                            Formatting.WHITE,
+                            ChatFormatting.GRAY,
+                            ChatFormatting.WHITE,
                             enchantName,
                             levelText,
-                            Formatting.GRAY,
-                            Formatting.WHITE,
-                            offer.getOriginalFirstBuyItem().getCount(),
-                            Formatting.GRAY
+                            ChatFormatting.GRAY,
+                            ChatFormatting.WHITE,
+                            offer.getBaseCostA().getCount(),
+                            ChatFormatting.GRAY
                         );
-                        mc.getNetworkHandler().getConnection().disconnect(Text.of(message));
+                        mc.getConnection().getConnection().disconnect(Component.nullToEmpty(message));
                     }
                     break;
                 }
@@ -760,14 +760,14 @@ public class VillagerRoller extends Module {
             }
         }
 
-        mc.player.closeHandledScreen();
+        mc.player.closeContainer();
         currentState = State.ROLLING_BREAKING_BLOCK;
     }
 
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
         if (currentState != State.WAITING_FOR_TARGET_VILLAGER) return;
-        if (!(event.entity instanceof VillagerEntity villager)) return;
+        if (!(event.entity instanceof Villager villager)) return;
 
         rollingVillager = villager;
         currentState = State.ROLLING_BREAKING_BLOCK;
@@ -782,10 +782,10 @@ public class VillagerRoller extends Module {
         if (currentState != State.WAITING_FOR_TARGET_BLOCK) return;
 
         rollingBlockPos = event.blockPos;
-        rollingBlock = mc.world.getBlockState(rollingBlockPos).getBlock();
+        rollingBlock = mc.level.getBlockState(rollingBlockPos).getBlock();
         currentState = State.WAITING_FOR_TARGET_VILLAGER;
         if (instantRebreak.get()) {
-            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, rollingBlockPos, Direction.UP));
+            mc.getConnection().send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, rollingBlockPos, Direction.UP));
         }
         if (cfSetup.get()) {
             info("Rolling block selected, now interact with villager you want to roll");
@@ -807,9 +807,9 @@ public class VillagerRoller extends Module {
         switch (currentState) {
             case ROLLING_BREAKING_BLOCK -> {
                 if (instantRebreak.get()) {
-                    mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, rollingBlockPos, Direction.DOWN));
+                    mc.getConnection().send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, rollingBlockPos, Direction.DOWN));
                 }
-                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                if (mc.level.getBlockState(rollingBlockPos) == Blocks.AIR.defaultBlockState()) {
                     // info("Block is broken, waiting for villager to clean profession...");
                     currentState = State.ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR;
                 } else if (!instantRebreak.get() && !BlockUtils.breakBlock(rollingBlockPos, true)) {
@@ -818,14 +818,14 @@ public class VillagerRoller extends Module {
                 }
             }
             case ROLLING_WAITING_FOR_VILLAGER_PROFESSION_CLEAR -> {
-                if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                if (mc.level.getBlockState(rollingBlockPos).is(Blocks.LECTERN)) {
                     if (cfDiscrepancy.get()) {
                         info("Rolling block mining reverted?");
                     }
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
-                rollingVillager.getVillagerData().profession().getKey().ifPresent(profession -> {
+                rollingVillager.getVillagerData().profession().unwrapKey().ifPresent(profession -> {
                     if (profession == VillagerProfession.NONE) {
                         // info("Profession cleared");
                         currentState = State.ROLLING_PLACING_BLOCK;
@@ -833,7 +833,7 @@ public class VillagerRoller extends Module {
                 });
             }
             case ROLLING_PLACING_BLOCK -> {
-                if (mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                if (mc.level.getBlockState(rollingBlockPos).is(Blocks.LECTERN)) {
                     if (cfBlockPlaceBounce.get()) {
                         info("Lectern placement bounced?");
                     }
@@ -866,21 +866,21 @@ public class VillagerRoller extends Module {
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
-                if (mc.world.getBlockState(rollingBlockPos) == Blocks.AIR.getDefaultState()) {
+                if (mc.level.getBlockState(rollingBlockPos) == Blocks.AIR.defaultBlockState()) {
                     if (cfDiscrepancy.get()) {
                         info("Lectern placement reverted by server (AC?)");
                     }
                     currentState = State.ROLLING_PLACING_BLOCK;
                     return;
                 }
-                if (!mc.world.getBlockState(rollingBlockPos).isOf(Blocks.LECTERN)) {
+                if (!mc.level.getBlockState(rollingBlockPos).is(Blocks.LECTERN)) {
                     if (cfDiscrepancy.get()) {
                         info("Placed wrong block?!");
                     }
                     currentState = State.ROLLING_BREAKING_BLOCK;
                     return;
                 }
-                rollingVillager.getVillagerData().profession().getKey().ifPresent(profession -> {
+                rollingVillager.getVillagerData().profession().unwrapKey().ifPresent(profession -> {
                     if (profession != VillagerProfession.NONE) {
                         currentState = State.ROLLING_WAITING_FOR_VILLAGER_TRADES;
                         triggerInteract();
@@ -920,15 +920,15 @@ public class VillagerRoller extends Module {
         }
 
         public RollingEnchantment() {
-            enchantment = Identifier.of("minecraft", "protection");
+            enchantment = Identifier.fromNamespaceAndPath("minecraft", "protection");
             minLevel = 0;
             maxCost = 0;
             enabled = false;
         }
 
         @Override
-        public NbtCompound toTag() {
-            NbtCompound tag = new NbtCompound();
+        public CompoundTag toTag() {
+            CompoundTag tag = new CompoundTag();
             tag.putString("enchantment", enchantment.toString());
             tag.putInt("minLevel", minLevel);
             tag.putInt("maxCost", maxCost);
@@ -937,11 +937,11 @@ public class VillagerRoller extends Module {
         }
 
         @Override
-        public RollingEnchantment fromTag(NbtCompound tag) {
-            enchantment = Identifier.tryParse(tag.getString("enchantment", ""));
-            minLevel = tag.getInt("minLevel", 1);
-            maxCost = tag.getInt("maxCost", 64);
-            enabled = tag.getBoolean("enabled", true);
+        public RollingEnchantment fromTag(CompoundTag tag) {
+            enchantment = Identifier.tryParse(tag.getStringOr("enchantment", ""));
+            minLevel = tag.getIntOr("minLevel", 1);
+            maxCost = tag.getIntOr("maxCost", 64);
+            enabled = tag.getBooleanOr("enabled", true);
             return this;
         }
     }
