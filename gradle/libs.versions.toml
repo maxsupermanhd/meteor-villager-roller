@@ -12,8 +12,6 @@ loom = "1.16-SNAPSHOT"
 
 # Meteor (https://github.com/MeteorDevelopment/meteor-client)
 meteor = "26.1.2-SNAPSHOT"
-# Orbit (https://github.com/MeteorDevelopment/orbit)
-orbit = "0.2.4"
 
 [libraries]
 # Fabric base
@@ -22,7 +20,6 @@ fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-l
 
 # Meteor client
 meteor-client = { module = "meteordevelopment:meteor-client", version.ref = "meteor" }
-orbit = { module = "meteordevelopment:orbit", version.ref = "orbit" }
 
 [plugins]
 fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }

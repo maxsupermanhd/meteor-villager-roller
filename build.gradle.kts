@@ -32,7 +32,6 @@ dependencies {
 
     // Meteor
     implementation(libs.meteor.client)
-    implementation(libs.orbit)
 }
 
 fun toMinecraftCompat(version: String): String {
