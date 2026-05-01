@@ -1,6 +1,5 @@
 name: devbuild
-on:
-  - push
+on: push
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,12 +17,12 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew build
-      - name: Create Dev Build release
+      - name: Create release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          automatic_release_tag: latest
-          prerelease: true
-          title: Dev Build
+          automatic_release_tag: 1.4.19
+          prerelease: false
+          title: "26.1.2 | 1.4.19"
           files: |
             ./build/libs/*.jar
