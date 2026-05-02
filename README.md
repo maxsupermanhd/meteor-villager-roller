@@ -12,28 +12,28 @@ We have a [Discord server](https://discord.com/invite/DFsMKWJJPN).
 
 | Minecraft | Meteor           | Supported | Download                                                                                                                                      |
 |-----------|------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| 1.21.11   | 1.21.11          | Yes       | [1.4.18](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.18/villager-roller-1.4.18+mc1.21.11-rev.82b8feb.jar)   |
-| 1.21.10   | 1.21.10          | No        | [1.4.17](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.17/villager-roller-1.4.17+mc1.21.10-rev.7416e60.jar)   |
-| 1.21.8    | 1.21.8           | No        | [1.4.16](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.16/villager-roller-1.4.16+mc1.21.8-rev.77bfc30.jar)    |
-| 1.21.7    | 1.21.7           | No        | [1.4.15](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.15/villager-roller-1.4.15+mc1.21.7-rev.b7d0b7d.jar)    |
-| 1.21.6    | 1.21.6           | No        | [1.4.14](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.14/villager-roller-1.4.14+mc1.21.6-rev.e009dd3.jar)    |
-| 1.21.5    | 1.21.5           | No        | [1.4.13](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.13/villager-roller-1.4.13+mc1.21.5-rev.80d75f3.jar)    |
-| 1.21.5    | 1.21.5           | No        | [1.4.12](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.12/villager-roller-1.4.12+mc1.21.5-rev.2c77bc1.jar)    |
-| 1.21.4    | 0.6.0-dev >2228  | No        | [1.4.10](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.10/villager-roller-1.4.10+mc1.21.4-rev.0f259ee.jar)    |
-| 1.21.3    | 0.5.9-dev >2202  | No        | [1.4.9](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.9/villager-roller-1.4.9+mc1.21.3-rev.0cb2d37.jar)       |
-| 1.21.1    | 0.5.8-dev >2147  | No        | [1.4.8](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.8/villager-roller-1.4.8+mc1.21.1-rev.5a91a53.jar)       |
+| 26.1.x    | 26.1.2           | Yes       | [1.4.19](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.19)                                                         |
+| 1.21.11   | 1.21.11          | No        | [1.4.18](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.18)                                                         |
+| 1.21.10   | 1.21.10          | No        | [1.4.17](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.17)                                                         |
+| 1.21.8    | 1.21.8           | No        | [1.4.16](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.16)                                                         |
+| 1.21.7    | 1.21.7           | No        | [1.4.15](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.15)                                                         |
+| 1.21.6    | 1.21.6           | No        | [1.4.14](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.14)                                                         |
+| 1.21.5    | 1.21.5           | No        | [1.4.13](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.13)                                                         |
+| 1.21.4    | 0.6.0-dev >2228  | No        | [1.4.10](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.10)                                                         |
+| 1.21.3    | 0.5.9-dev >2202  | No        | [1.4.9](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.9)                                                           |
+| 1.21.1    | 0.5.8-dev >2147  | No        | [1.4.8](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.8)                                                           |
 | 1.20.6    | 0.5.7-dev >2072  | No        | [1.4.5](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.7/villager-roller-1.4.5+mc1.20.6-rev.e9d12e8-dirty.jar) |
-| 1.20.4    | 0.5.6-dev >1983  | No        | [1.4.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.4/villager-roller-1.4.4+mc1.20.4-rev.aec87b6.jar)       |
-| 1.20.2    | 0.5.5-dev >1945  | No        | [1.4.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.3/villager-roller-1.4.3+mc1.20.2-rev.019b0cc.jar)       |
+| 1.20.4    | 0.5.6-dev >1983  | No        | [1.4.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.4)                                                           |
+| 1.20.2    | 0.5.5-dev >1945  | No        | [1.4.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.3)                                                           |
 | 1.20.1    | 0.5.4-dev >1846  | No        | [1.4.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.2/villager-roller-1.4.2+mc1.20.1-rev.ac89621.jar)       |
 | 1.19.4    | 0.5.3-dev >1817  | No        | [1.4.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.4.2/villager-roller-1.4.2+mc1.19.4-rev.ac89621-dirty.jar) |
-| 1.19.3    | 0.5.2-dev >1714  | No        | [1.3.6](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.6/villager-roller-1.3.6+mc1.19.3-rev.0700d38.jar)       |
-| 1.19.2    | 0.5.1-dev >1573  | No        | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.4/villager-roller-1.3.4+mc1.19.2-rev.f2c071c.jar)       |
-| 1.19.1    | 0.5.1-dev >1570  | No        | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.2/villager-roller-1.3.2+mc1.19.1-rev.bd5aa5e.jar)       |
-| 1.19      | 0.5.0-dev >=1563 | No        | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3.1/villager-roller-1.3.1+mc1.19-build.34.jar)            |
-| 1.19      | 0.5.0-dev <1563  | No        | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.19-rev.b16e705.jar)               |
+| 1.19.3    | 0.5.2-dev >1714  | No        | [1.3.6](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.3.6)                                                           |
+| 1.19.2    | 0.5.1-dev >1573  | No        | [1.3.4](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.3.4)                                                           |
+| 1.19.1    | 0.5.1-dev >1570  | No        | [1.3.2](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.3.2)                                                           |
+| 1.19      | 0.5.0-dev >=1563 | No        | [1.3.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.3.1)                                                           |
+| 1.19      | 0.5.0-dev <1563  | No        | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.3)                                                               |
 | 1.18.2    | 0.4.9            | No        | [1.3](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.3/villager-roller-1.3+mc1.18.2-rev.3d6f694.jar)             |
-| 1.18.1    | ?                | No        | [1.2.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/download/1.2.1/villager-roller-1.2.1.jar)                            |
+| 1.18.1    | ?                | No        | [1.2.1](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.2.1)                                                           |
 
 Download links for older versions are here only for archival reasons, do not use them.
 
