@@ -1,5 +1,8 @@
 name: devbuild
-on: push
+on:
+    push:
+        tags:
+            - '*'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +24,8 @@ jobs:
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          automatic_release_tag: 1.4.19
+          automatic_release_tag: ${{ github.ref_name }}
           prerelease: false
-          title: "26.1.2 | 1.4.19"
+          title: ${{ github.ref_name }}
           files: |
             ./build/libs/*.jar
