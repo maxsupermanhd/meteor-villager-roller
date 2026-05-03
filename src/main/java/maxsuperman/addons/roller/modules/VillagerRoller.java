@@ -272,6 +272,13 @@ public class VillagerRoller extends Module {
         .build()
     );
 
+    private final Setting<Boolean> cfFoundMatching = sgChatFeedback.add(new BoolSetting.Builder()
+        .name("found-matching")
+        .description("Lets you know what was found before stopping.")
+        .defaultValue(true)
+        .build()
+    );
+
     private enum State {
         DISABLED,
         WAITING_FOR_TARGET_BLOCK,
@@ -729,6 +736,10 @@ public class VillagerRoller extends Module {
                         continue;
                     }
                     if (disableIfFound.get()) e.enabled = false;
+                    if (cfFoundMatching.get()) {
+                        info(String.format("Found matching enchant %s (level %d) for %d emeralds and stopped.",
+                            enchantName, enchantLevel, offer.getBaseCostA().getCount()));
+                    }
                     toggle();
                     if (enablePlaySound.get() && !sound.get().isEmpty()) {
                         mc.getSoundManager().play(SimpleSoundInstance.forUI(sound.get().get(0),
