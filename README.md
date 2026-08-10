@@ -12,7 +12,8 @@ We have a [Discord server](https://discord.com/invite/DFsMKWJJPN).
 
 | Minecraft | Meteor           | Supported | Download                                                                                                                                      |
 |-----------|------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| 26.1.x    | 26.1.2           | Yes       | [1.4.19](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.19)                                                         |
+| 26.2      | 26.2             | Yes       | [1.4.20](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.20)                                                         |
+| 26.1.x    | 26.1.2           | No        | [1.4.19](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.19)                                                         |
 | 1.21.11   | 1.21.11          | No        | [1.4.18](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.18)                                                         |
 | 1.21.10   | 1.21.10          | No        | [1.4.17](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.17)                                                         |
 | 1.21.8    | 1.21.8           | No        | [1.4.16](https://github.com/maxsupermanhd/meteor-villager-roller/releases/tag/1.4.16)                                                         |
